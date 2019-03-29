@@ -8,6 +8,7 @@ install:
 - pip install pytest
 - pip install pytest-cov
 - pip install coveralls
+- pip install black
 script:
   - pytest --cov=gene_outlier_detection/
   - black --check gene_outlier_detection/
