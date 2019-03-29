@@ -41,7 +41,7 @@ pip install --pre gene-outlier-detection
 2. Download the prerequisite [inputs](https://github.com/jvivian/gene-outlier-detection/wiki/Model-Inputs)
 3. Run the model
 ```bash
-outlier-model --sample /data/tumor.hd5 \
+outlier-detection --sample /data/tumor.hd5 \
         --background /data/gtex.hd5 \
         --name TCGA-OR-A5KV-01 \
         --gene-list /data/drug-genes.txt \
@@ -83,7 +83,7 @@ They must both contain the same set of genes and the background dataset must con
 A Docker container containing the program can be executed as follows:
 
 ```bash
-docker run --rm -v $(pwd):/data jvivian/gene-outlier-model:1.0a1 \
+docker run --rm -v $(pwd):/data jvivian/gene-outlier-detection \
         outlier-model --sample /data/inputs/tumor.hd5 \
         --background /data/inputs/gtex.hd5 \
         --name=TCGA-OR-A5KV-01 \
