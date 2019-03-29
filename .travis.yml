@@ -6,6 +6,7 @@ before_install:
 install:
 - poetry install -v
 - pip install pytest
+- pip install pytest-cov
 - pip install coveralls
 script:
   - pytest --cov=gene_outlier_detection/
