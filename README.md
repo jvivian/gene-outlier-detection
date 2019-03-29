@@ -31,7 +31,7 @@ model, trace = data['model'], data['trace']
 - **ranks.tsv** — The median rank of all groups as measured by pairwise euclidean distance
 - **traceplot.png** — Traceplot from PyMC3 linear model coefficients and model error
 - **weights.png** — Boxplot of model weights for all background datasets
-- **weights.tsv** — Average and sd of model weights as related to background datasets
+- **weights.tsv** — Mean and SD of model weights as related to background datasets
 
 # Quickstart
 1. Install
