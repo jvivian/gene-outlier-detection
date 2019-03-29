@@ -31,17 +31,17 @@ model, trace = data['model'], data['trace']
 - **ranks.tsv** — The median rank of all groups as measured by pairwise euclidean distance
 - **traceplot.png** — Traceplot from PyMC3 linear model coefficients and model error
 - **weights.png** — Boxplot of model weights for all background datasets
-- **weights.tsv** — Average and sd of model weights as related to background datasets
+- **weights.tsv** — Mean and SD of model weights as related to background datasets
 
 # Quickstart
 1. Install
 ```bash
-pip install --pre gene-outlier-model
+pip install --pre gene-outlier-detection
 ```
 2. Download the prerequisite [inputs](https://github.com/jvivian/gene-outlier-detection/wiki/Model-Inputs)
 3. Run the model
 ```bash
-outlier-model --sample /data/tumor.hd5 \
+outlier-detection --sample /data/tumor.hd5 \
         --background /data/gtex.hd5 \
         --name TCGA-OR-A5KV-01 \
         --gene-list /data/drug-genes.txt \
@@ -71,10 +71,7 @@ variables represent different background dataset’s expression for that gene.
 The beta coefficients, or weights, are shared between linear models to learn the relative contribution of each of the background datasets.
 A Dirichlet distribution was chosen as a penalization of the beta coefficients and for its ease of interpretability 
 as coefficients are positive and sum to 1. 
-To better model outliers, a Laplacian distribution was chosen as the likelihood function for its long-tailed properties.
-
-As a computational shortcut, the latent Y-variable that learns its parameter values through shared coefficients with an observed random variable can be replaced with a random variable whose starting parameters are learned by prefitting the background dataset’s distribution for each gene.
-This reduces the number of parameters in the model by a factor of four without any significant difference in calculated posterior predictive p-values. The model is trained for each individual N-of-1 patient using the No-U-turn Markov Chain Monte Carlo sampling process. 
+To better model outliers, a Laplacian distribution was chosen as the likelihood function for its long-tailed properties. The model is trained for each individual N-of-1 patient using the No-U-turn Markov Chain Monte Carlo sampling process. 
 
 # Defining Custom Inputs
 
@@ -86,7 +83,7 @@ They must both contain the same set of genes and the background dataset must con
 A Docker container containing the program can be executed as follows:
 
 ```bash
-docker run --rm -v $(pwd):/data jvivian/gene-outlier-model:1.0a1 \
+docker run --rm -v $(pwd):/data jvivian/gene-outlier-detection \
         outlier-model --sample /data/inputs/tumor.hd5 \
         --background /data/inputs/gtex.hd5 \
         --name=TCGA-OR-A5KV-01 \
