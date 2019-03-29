@@ -71,10 +71,7 @@ variables represent different background dataset’s expression for that gene.
 The beta coefficients, or weights, are shared between linear models to learn the relative contribution of each of the background datasets.
 A Dirichlet distribution was chosen as a penalization of the beta coefficients and for its ease of interpretability 
 as coefficients are positive and sum to 1. 
-To better model outliers, a Laplacian distribution was chosen as the likelihood function for its long-tailed properties.
-
-As a computational shortcut, the latent Y-variable that learns its parameter values through shared coefficients with an observed random variable can be replaced with a random variable whose starting parameters are learned by prefitting the background dataset’s distribution for each gene.
-This reduces the number of parameters in the model by a factor of four without any significant difference in calculated posterior predictive p-values. The model is trained for each individual N-of-1 patient using the No-U-turn Markov Chain Monte Carlo sampling process. 
+To better model outliers, a Laplacian distribution was chosen as the likelihood function for its long-tailed properties. The model is trained for each individual N-of-1 patient using the No-U-turn Markov Chain Monte Carlo sampling process. 
 
 # Defining Custom Inputs
 
