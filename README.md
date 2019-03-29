@@ -36,7 +36,7 @@ model, trace = data['model'], data['trace']
 # Quickstart
 1. Install
 ```bash
-pip install --pre gene-outlier-model
+pip install --pre gene-outlier-detection
 ```
 2. Download the prerequisite [inputs](https://github.com/jvivian/gene-outlier-detection/wiki/Model-Inputs)
 3. Run the model
