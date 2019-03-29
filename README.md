@@ -1,7 +1,7 @@
 # N-of-1 Gene Outlier Detection
 ### For RNA-seq Expression Data
 
-[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/ambv/black)
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/ambv/black) [![Build Status](https://travis-ci.com/jvivian/gene-outlier-detection.svg?branch=master)](https://travis-ci.com/jvivian/gene-outlier-detection)
 
 This package identifies outliers for gene expression data by building a consensus distribution from background datasets that are informed by an N-of-1 sample. 
 See [Model Explanation](#model-explanation) for more information.
