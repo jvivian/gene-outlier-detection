@@ -59,7 +59,7 @@ warnings.filterwarnings("ignore")
 )
 @click.option(
     "--max-genes",
-    default=100,
+    default=125,
     type=int,
     show_default=True,
     help="Maximum number of genes to run. I.e. if a gene list is input, how many additional"
