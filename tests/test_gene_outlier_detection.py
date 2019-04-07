@@ -1,14 +1,16 @@
-import pandas as pd
-import pytest
 import os
 from distutils import dir_util
+
+import pandas as pd
+import pytest
+from click.testing import CliRunner
 
 
 @pytest.fixture
 def datadir(tmpdir):
     datadir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "data"))
     dir_util.copy_tree(datadir, str(tmpdir))
-    return tmpdir
+    return str(tmpdir)
 
 
 @pytest.fixture
@@ -82,7 +84,7 @@ def test_load_df(datadir):
 
 
 def test_pca_distances(load_data):
-    from gene_outlier_detection.lib import pca_distances, get_sample, load_df
+    from gene_outlier_detection.lib import pca_distances
 
     sample, df, genes = load_data
     dist = pca_distances(sample, df, genes)
@@ -117,6 +119,13 @@ def test_posterior_predictive_check(ppc):
     assert len(ppc[list(ppc.keys())[0]]) == 1000
 
 
+def test__gene_ppc(model_output):
+    from gene_outlier_detection.lib import _gene_ppc
+
+    m, t = model_output
+    assert len(_gene_ppc(t, "PAX8")) == 1000
+
+
 def test_posterior_predictive_pvals(load_data, ppc):
     from gene_outlier_detection.lib import posterior_predictive_pvals
 
@@ -140,6 +149,15 @@ def test_posterior_predictive_pvals(load_data, ppc):
     assert len(inter) == 10
 
 
+def test__ppp_one_gene():
+    from gene_outlier_detection.lib import _ppp_one_gene
+    import numpy as np
+
+    z = np.array(range(10))
+    z_true = 5
+    assert _ppp_one_gene(z_true, z) == 0.4
+
+
 def test_pickle_model(tmpdir, model_output):
     from gene_outlier_detection.lib import pickle_model
 
@@ -147,3 +165,35 @@ def test_pickle_model(tmpdir, model_output):
     out = os.path.join(tmpdir, "model.pkl")
     pickle_model(out, m, t)
     assert os.path.exists(out)
+
+
+def test_main(datadir):
+    from gene_outlier_detection.main import cli
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli,
+        [
+            "--sample",
+            os.path.join(datadir, "input.tsv"),
+            "--background",
+            os.path.join(datadir, "normal.tsv"),
+            "--name",
+            "TCGA-DJ-A2PX-01",
+            "--out-dir",
+            datadir,
+            "--group",
+            "tissue",
+            "--col-skip",
+            "5",
+            "--num-backgrounds",
+            "2",
+            "--max-genes",
+            "10",
+            "--num-training-genes",
+            "10",
+        ],
+        catch_exceptions=False,
+    )
+    assert result.exit_code == 0
+    assert os.path.exists(os.path.join(datadir, "TCGA-DJ-A2PX-01"))
