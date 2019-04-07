@@ -105,6 +105,12 @@ def pca_distances(
     Returns:
         DataFrame of pairwise distances
     """
+    # Check n_components value which must be between 0 and min(n_samples, n_features)
+    n_samples, n_features = df.shape
+    if n_components >= min(n_samples, n_features):
+        n_components = min(n_samples, n_features)
+        click.echo(f"Number of components changed to {n_components}")
+
     # Concatenate sample to background
     concat = df.append(sample)
 
@@ -280,7 +286,7 @@ def _gene_ppc(trace, gene: str) -> np.array:
 
 def posterior_predictive_pvals(
     sample: pd.Series, ppc: Dict[str, np.array]
-) -> pd.Series:
+) -> pd.DataFrame:
     """
     Produces Series of posterior p-values for all genes in the Posterior Predictive Check (PPC) dictionary
 
@@ -296,7 +302,11 @@ def posterior_predictive_pvals(
         z_true = sample[gene]
         z = st.laplace.rvs(*st.laplace.fit(ppc[gene]), size=100_000)
         pvals[gene] = _ppp_one_gene(z_true, z)
-    return pd.Series(pvals).sort_values()
+    return (
+        pd.DataFrame(pvals.items(), columns=["Gene", "Pval"])
+        .sort_values("Pval")
+        .reset_index(drop=True)
+    )
 
 
 def _ppp_one_gene(z_true, z):
