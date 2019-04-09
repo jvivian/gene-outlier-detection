@@ -1,5 +1,6 @@
 import pickle
-from typing import List, Dict
+import time
+from typing import List, Dict, Tuple
 
 import click
 import matplotlib.pyplot as plt
@@ -7,10 +8,10 @@ import numpy as np
 import pandas as pd
 import scipy.stats as st
 import seaborn as sns
+from sklearn.decomposition import PCA
 from sklearn.feature_selection import SelectKBest
 from sklearn.metrics import pairwise_distances
 from tqdm.autonotebook import tqdm
-from sklearn.decomposition import PCA
 
 
 def select_k_best_genes(
@@ -315,3 +316,12 @@ def pickle_model(output_path: str, model, trace):
     """Pickles PyMC3 model and trace"""
     with open(output_path, "wb") as buff:
         pickle.dump({"model": model, "trace": trace}, buff)
+
+
+def display_runtime(t0: float, total=False) -> Tuple[float, str]:
+    runtime = round((time.time() - t0) / 60, 2)
+    unit = "min" if runtime < 60 else "hr"
+    runtime = runtime if runtime < 60 else round(runtime / 60, 2)
+    msg = "Total runtime over all models" if total else "Model runtime"
+    click.secho(f"{msg}: {runtime} ({unit})", fg="green")
+    return runtime, unit
