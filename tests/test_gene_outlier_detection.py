@@ -131,7 +131,7 @@ def test_posterior_predictive_pvals(load_data, ppc):
 
     sample, df, genes = load_data
     ppp = posterior_predictive_pvals(sample, ppc)
-    assert ppp.shape == (10, 2)
+    assert ppp.shape == (10, 1)
 
     genes_in_model = {
         "DSG2",
@@ -145,7 +145,7 @@ def test_posterior_predictive_pvals(load_data, ppc):
         "PAX8",
         "CCL21",
     }
-    inter = set(ppp.Gene).intersection(genes_in_model)
+    inter = set(ppp.index).intersection(genes_in_model)
     assert len(inter) == 10
 
 
