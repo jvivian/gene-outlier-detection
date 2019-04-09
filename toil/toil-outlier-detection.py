@@ -59,7 +59,11 @@ def run_outlier_model(
         str(args.max_genes),
         "--num-training-genes",
         str(args.num_training_genes),
+        "--pval-convergence-cutoff",
+        str(args.pval_convergence_cutoff),
     ]
+    if args.disable_iter:
+        parameters.append("--disable-iter")
     if gene_id:
         parameters.extend(["--gene-list", "/data/gene-list.txt"])
     image = "jvivian/gene-outlier-detection"
@@ -134,6 +138,17 @@ def cli():
         default=50,
         type=int,
         help="If gene-list is empty, will use SelectKBest to choose gene set.",
+    )
+    parser.add_argument(
+        "--pval-convergence-cutoff",
+        default=0.99,
+        type=float,
+        help="P-value Pearson correlation cutoff to stop adding additional background datasets.",
+    )
+    parser.add_argument(
+        "--disable-iter",
+        action="store_true",
+        help="This flag disables iterative runs and runs one model with `--num-backgrounds`",
     )
 
     # Add Toil options

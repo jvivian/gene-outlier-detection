@@ -109,7 +109,7 @@ def pca_distances(
     n_samples, n_features = df.shape
     if n_components >= min(n_samples, n_features):
         n_components = min(n_samples, n_features)
-        click.echo(f"Number of components changed to {n_components}")
+        click.secho(f"Number of components changed to {n_components}", fg="yellow")
 
     # Concatenate sample to background
     concat = df.append(sample)
@@ -302,11 +302,8 @@ def posterior_predictive_pvals(
         z_true = sample[gene]
         z = st.laplace.rvs(*st.laplace.fit(ppc[gene]), size=100_000)
         pvals[gene] = _ppp_one_gene(z_true, z)
-    return (
-        pd.DataFrame(pvals.items(), columns=["Gene", "Pval"])
-        .sort_values("Pval")
-        .reset_index(drop=True)
-    )
+    ppp = pd.DataFrame(pvals.items(), columns=["Gene", "Pval"]).sort_values("Pval")
+    return ppp.set_index("Gene", drop=True)
 
 
 def _ppp_one_gene(z_true, z):
