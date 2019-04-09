@@ -197,3 +197,17 @@ def test_main(datadir):
     )
     assert result.exit_code == 0
     assert os.path.exists(os.path.join(datadir, "TCGA-DJ-A2PX-01"))
+
+
+def test_display_runtime():
+    from gene_outlier_detection.lib import display_runtime
+    import time
+
+    t0 = time.time() - 300
+    runtime, unit = display_runtime(t0)
+    assert unit == "min"
+    assert int(runtime) == 5
+    t0 = time.time() - 3600
+    runtime, unit = display_runtime(t0)
+    assert unit == "hr"
+    assert int(runtime) == 1

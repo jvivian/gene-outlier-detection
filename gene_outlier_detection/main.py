@@ -6,10 +6,11 @@ from argparse import Namespace
 
 import click
 import matplotlib.pyplot as plt
-import pymc3 as pm
 import pandas as pd
+import pymc3 as pm
 import scipy.stats as st
 
+from gene_outlier_detection.lib import display_runtime
 from gene_outlier_detection.lib import get_sample
 from gene_outlier_detection.lib import load_df
 from gene_outlier_detection.lib import pca_distances
@@ -62,6 +63,7 @@ def iter_run(opts: Namespace):
     # Iteratively run model until convergence or maximum number of training background sets is reached
     pval_runs = pd.DataFrame()
     pearson_correlations = []
+    t0 = time.time()
     for i in range(1, opts.n_bg + 1):
         i = opts.n_bg if opts.disable_iter else i
         train_set, model, trace, ppp = run(opts, i)
@@ -87,9 +89,12 @@ def iter_run(opts: Namespace):
             break
         else:
             click.secho(
-                f"P-value Pearson correlation currently: {round(pr, 3)} between run {i-1} and {i}",
+                f"P-value Pearson correlation currently: {round(pr, 3)} between run {i - 1} and {i}",
                 fg="yellow",
             )
+
+    # Total runtime of all iterations of model
+    display_runtime(t0)
 
     # Output P-value runs
     pval_runs_out = os.path.join(opts.out_dir, "_pval_runs.tsv")
@@ -164,10 +169,7 @@ def run(opts: Namespace, num_backgrounds: int):
     # Run model and output runtime
     t0 = time.time()
     model, trace = run_model(opts.sample, train_set, training_genes, group=opts.group)
-    runtime = round((time.time() - t0) / 60, 2)
-    unit = "min" if runtime < 60 else "hr"
-    runtime = runtime if runtime < 60 else round(runtime / 60, 2)
-    click.secho(f"Model runtime: {runtime} ({unit})", fg="green")
+    display_runtime(t0)
 
     # PPC / PPP
     ppc = posterior_predictive_check(trace, training_genes)
@@ -191,7 +193,9 @@ def run(opts: Namespace, num_backgrounds: int):
 @click.option(
     "--gene-list", type=str, help="Single column file of genes to use for training"
 )
-@click.option("--out-dir", default=".", type=str, help="Output directory")
+@click.option(
+    "--out-dir", default="./", type=str, show_default=True, help="Output directory"
+)
 @click.option(
     "--group",
     default="tissue",
