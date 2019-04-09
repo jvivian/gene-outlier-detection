@@ -2,21 +2,27 @@ language: python
 python:
   - 3.6
 before_install:
-- pip install poetry
+  - pip install poetry
 install:
-- poetry install -v
-- pip install pytest
-- pip install pytest-cov
-- pip install coveralls
-- pip install black
+  - poetry install -v
+  - pip install pytest
+  - pip install pytest-cov
+  - pip install coveralls
+  - pip install black
 script:
   - pytest --cov=gene_outlier_detection/
   - black --check gene_outlier_detection/
   - black --check tests/
 after_success:
   - coveralls
-#before_deploy:
-#  - poetry build
-#deploy:
-#  provider: script
-#  script: poetry publish
+before_deploy:
+  # User and password environment variables are set as hidden variables through
+  # the web interface in the project settings.
+  - pip install --upgrade pip
+  - pip install poetry
+  - poetry config http-basic.pypi $PYPI_USER $PYPI_PASS
+  - poetry build
+deploy:
+  provider: script
+  script: poetry publish
+  skip_cleanup: true
