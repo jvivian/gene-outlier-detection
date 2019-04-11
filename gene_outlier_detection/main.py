@@ -161,6 +161,7 @@ def run(opts: Namespace, num_backgrounds: int):
 
     # Set env variable for base_compiledir before importing model
     os.environ["THEANO_FLAGS"] = f"base_compiledir={opts.theano_dir}"
+    os.makedirs(opts.theano_dir, exist_ok=True)
     from gene_outlier_detection.lib import run_model
 
     # Run model and output runtime
