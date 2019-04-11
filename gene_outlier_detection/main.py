@@ -69,7 +69,7 @@ def iter_run(opts: Namespace):
         train_set, model, trace, ppp = run(opts, i)
 
         # Add PPP to DataFrame of all pvalues collected
-        pval_runs = pd.concat([ppp, pval_runs], axis=1).dropna()
+        pval_runs = pd.concat([pval_runs, ppp], axis=1).dropna()
         pval_runs.columns = list(range(len(pval_runs.columns)))
 
         # Early stop conditions
@@ -129,9 +129,6 @@ def iter_run(opts: Namespace):
     model_out = os.path.join(opts.out_dir, "model.pkl")
     pickle_model(model_out, model, trace)
 
-    # Cleanup
-    shutil.rmtree(opts.theano_dir)
-
 
 def run(opts: Namespace, num_backgrounds: int):
     """
@@ -164,6 +161,7 @@ def run(opts: Namespace, num_backgrounds: int):
 
     # Set env variable for base_compiledir before importing model
     os.environ["THEANO_FLAGS"] = f"base_compiledir={opts.theano_dir}"
+    os.makedirs(opts.theano_dir, exist_ok=True)
     from gene_outlier_detection.lib import run_model
 
     # Run model and output runtime
@@ -174,6 +172,9 @@ def run(opts: Namespace, num_backgrounds: int):
     # PPC / PPP
     ppc = posterior_predictive_check(trace, training_genes)
     ppp = posterior_predictive_pvals(opts.sample, ppc)
+
+    # Cleanup
+    shutil.rmtree(opts.theano_dir)
 
     return train_set, model, trace, ppp
 
