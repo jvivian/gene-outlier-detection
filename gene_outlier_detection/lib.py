@@ -52,7 +52,8 @@ def get_sample(df_path: str, sample_name: str) -> pd.Series:
     else:
         try:
             df = pd.read_hdf(df_path)
-        except:
+        except Exception as e:
+            print(e)
             raise RuntimeError(f"Failed to open DataFrame: {df_path}")
 
     if sample_name in df.index:
@@ -80,7 +81,8 @@ def load_df(df_path: str) -> pd.DataFrame:
     else:
         try:
             df = pd.read_hdf(df_path)
-        except:
+        except Exception as e:
+            print(e)
             raise RuntimeError(f"Failed to open DataFrame: {df_path}")
     return df
 
