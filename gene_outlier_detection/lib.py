@@ -321,6 +321,13 @@ def pickle_model(output_path: str, model, trace):
 
 
 def display_runtime(t0: float, total=False) -> Tuple[float, str]:
+    """
+    Displays runtime given an initial timepoint
+
+    :param t0: The initial time point generated via time.time()
+    :param total: If this constitutes the total runtime over all models
+    :return: runtime and unit of the runtime (min / hr)
+    """
     runtime = round((time.time() - t0) / 60, 2)
     unit = "min" if runtime < 60 else "hr"
     runtime = runtime if runtime < 60 else round(runtime / 60, 2)
