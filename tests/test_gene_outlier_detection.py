@@ -50,6 +50,36 @@ def ppc(model_output, load_data):
     return posterior_predictive_check(t, training_genes)
 
 
+@pytest.fixture
+def load_opts(tmpdir, load_data, datadir):
+    from argparse import Namespace
+    from gene_outlier_detection.lib import pca_distances
+    from gene_outlier_detection.lib import select_k_best_genes
+
+    # Get paths
+    df_path = os.path.join(datadir, "normal.tsv")
+    sample_path = os.path.join(datadir, "input.tsv")
+    # Build opts object
+    opts = Namespace()
+    sample, df, genes = load_data
+    opts.sample = sample_path
+    opts.background = df_path
+    opts.df = df
+    opts.group = "tissue"
+    opts.name = "TCGA-DJ-A2PX-01"
+    opts.n_train = 10
+    opts.max_genes = 10
+    opts.pval_cutoff = 0.99
+    opts.col_skip = 5
+    opts.n_bg = 2
+    opts.gene_list = None
+    opts.disable_iter = None
+    opts.genes = opts.df.columns[opts.col_skip :]
+    opts.out_dir = tmpdir
+    opts.theano_dir = os.path.join(opts.out_dir, ".theano")
+    return opts
+
+
 def test_select_k_best_genes(datadir):
     from gene_outlier_detection.lib import select_k_best_genes
     import warnings
@@ -211,3 +241,28 @@ def test_display_runtime():
     runtime, unit = display_runtime(t0)
     assert unit == "hr"
     assert int(runtime) == 1
+
+
+def test_run(load_opts):
+    from gene_outlier_detection.main import run
+    from gene_outlier_detection.lib import get_sample
+    from gene_outlier_detection.lib import pca_distances
+    from gene_outlier_detection.lib import select_k_best_genes
+
+    opts = load_opts
+    opts.sample = get_sample(opts.sample, opts.name)
+    opts.ranks = pca_distances(opts.sample, opts.df, opts.genes, opts.group)
+    train_set = opts.df[opts.df[opts.group].isin(opts.ranks.head(opts.n_bg)["Group"])]
+    opts.base_genes = select_k_best_genes(
+        train_set, opts.genes, opts.group, opts.n_train
+    )
+    os.makedirs(opts.theano_dir, exist_ok=True)
+    run(opts, 1)
+
+
+def test_iter_run(load_opts):
+    from gene_outlier_detection.main import iter_run
+
+    opts = load_opts
+    os.makedirs(opts.theano_dir, exist_ok=True)
+    iter_run(opts)
