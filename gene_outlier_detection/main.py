@@ -27,7 +27,7 @@ def iter_run(opts: Namespace):
     """
     Run model until P-values converge or num-backgrounds is reached
 
-    :param opts: Consolidated Namespace object containing CLI variables
+    :param opts: Namespace object containing CLI variables
     :return: None
     """
     # Load input data
@@ -69,7 +69,7 @@ def iter_run(opts: Namespace):
         train_set, model, trace, ppp = run(opts, i)
 
         # Add PPP to DataFrame of all pvalues collected
-        pval_runs = pd.concat([pval_runs, ppp], axis=1).dropna()
+        pval_runs = pd.concat([pval_runs, ppp], axis=1, sort=True).dropna()
         pval_runs.columns = list(range(len(pval_runs.columns)))
 
         # Early stop conditions
@@ -94,7 +94,7 @@ def iter_run(opts: Namespace):
             )
 
     # Total runtime of all iterations of model
-    display_runtime(t0)
+    display_runtime(t0, total=True)
 
     # Output P-value runs
     pval_runs_out = os.path.join(opts.out_dir, "_pval_runs.tsv")
@@ -134,8 +134,8 @@ def run(opts: Namespace, num_backgrounds: int):
     """
     Constitutes one model run
 
-    :param opts:
-    :param num_backgrounds:
+    :param opts: Namespace object containing CLI variables
+    :param num_backgrounds: Number of background sets to run
     :return: All unique components of a run: training samples, model, trace, and posterior pvalues
     """
     # Select training set
