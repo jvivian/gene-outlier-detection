@@ -1,3 +1,4 @@
+import os
 import pickle
 import time
 from typing import List, Dict, Tuple
@@ -334,3 +335,22 @@ def display_runtime(t0: float, total=False) -> Tuple[float, str]:
     msg = "Total runtime over all models" if total else "Model runtime"
     click.secho(f"{msg}: {runtime} ({unit})", fg="green")
     return runtime, unit
+
+
+def save_traceplot(trace, out_dir, b=True):
+    import pymc3 as pm
+
+    fig, axarr = plt.subplots(3, 2, figsize=(10, 5))
+    varnames = ["a", "b", "eps"] if b else ["a", "eps"]
+    pm.traceplot(trace, varnames=varnames, ax=axarr)
+    traceplot_out = os.path.join(out_dir, "traceplot.png")
+    fig.savefig(traceplot_out)
+
+
+def save_weights(trace, classes, out_dir):
+    weight_out = os.path.join(out_dir, "weights.png")
+    weights = plot_weights(classes, trace, output=weight_out)
+    # Convert weights to summarized information of median and std
+    weights = weights.groupby("Class").agg({"Weights": ["median", "std"]})
+    weights = weights.sort_values(("Weights", "median"), ascending=False)
+    weights.to_csv(os.path.join(out_dir, "weights.tsv"), sep="\t")
