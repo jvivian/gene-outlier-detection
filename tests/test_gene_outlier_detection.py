@@ -53,8 +53,6 @@ def ppc(model_output, load_data):
 @pytest.fixture
 def load_opts(tmpdir, load_data, datadir):
     from argparse import Namespace
-    from gene_outlier_detection.lib import pca_distances
-    from gene_outlier_detection.lib import select_k_best_genes
 
     # Get paths
     df_path = os.path.join(datadir, "normal.tsv")
@@ -243,6 +241,26 @@ def test_display_runtime():
     assert int(runtime) == 1
 
 
+def test_save_traceplot(tmpdir, model_output):
+    from gene_outlier_detection.lib import save_traceplot
+
+    _, t = model_output
+    save_traceplot(t, tmpdir)
+    assert os.path.exists(os.path.join(tmpdir, "traceplot.png"))
+
+
+def test_save_weights(tmpdir, load_data, model_output):
+    from gene_outlier_detection.lib import save_weights
+
+    sample, df, genes = load_data
+    m, t = model_output
+    classes = df.tissue.unique()
+    save_weights(t, classes, tmpdir)
+    assert os.path.exists(os.path.join(tmpdir, "weights.png"))
+    assert os.path.exists(os.path.join(tmpdir, "weights.tsv"))
+
+
+"""
 def test_run(load_opts):
     from gene_outlier_detection.main import run
     from gene_outlier_detection.lib import get_sample
@@ -266,3 +284,4 @@ def test_iter_run(load_opts):
     opts = load_opts
     os.makedirs(opts.theano_dir, exist_ok=True)
     iter_run(opts)
+"""

@@ -5,19 +5,18 @@ import warnings
 from argparse import Namespace
 
 import click
-import matplotlib.pyplot as plt
 import pandas as pd
-import pymc3 as pm
 import scipy.stats as st
 
 from gene_outlier_detection.lib import display_runtime
 from gene_outlier_detection.lib import get_sample
+from gene_outlier_detection.lib import save_weights
 from gene_outlier_detection.lib import load_df
 from gene_outlier_detection.lib import pca_distances
 from gene_outlier_detection.lib import pickle_model
-from gene_outlier_detection.lib import plot_weights
 from gene_outlier_detection.lib import posterior_predictive_check
 from gene_outlier_detection.lib import posterior_predictive_pvals
+from gene_outlier_detection.lib import save_traceplot
 from gene_outlier_detection.lib import select_k_best_genes
 
 warnings.filterwarnings("ignore")
@@ -64,6 +63,7 @@ def iter_run(opts: Namespace):
     pval_runs = pd.DataFrame()
     pearson_correlations = []
     t0 = time.time()
+    train_set, model, trace, ppp = None, None, None, None
     for i in range(1, opts.n_bg + 1):
         i = opts.n_bg if opts.disable_iter else i
         train_set, model, trace, ppp = run(opts, i)
@@ -106,20 +106,13 @@ def iter_run(opts: Namespace):
         with open(pearson_out, "w") as f:
             f.write("\n".join(pearson_correlations))
 
-    # Traceplot
-    fig, axarr = plt.subplots(3, 2, figsize=(10, 5))
-    pm.traceplot(trace, varnames=["a", "b", "eps"], ax=axarr)
-    traceplot_out = os.path.join(opts.out_dir, "traceplot.png")
-    fig.savefig(traceplot_out)
+    # Traceplot - if there is only one background then b = 1 instead of a Dirichlet RV
+    b = True if opts.n_bg > 1 else False
+    save_traceplot(trace, opts.out_dir, b=b)
 
     # Weight plot and weight table
     classes = train_set[opts.group].unique()
-    weight_out = os.path.join(opts.out_dir, "weights.png")
-    weights = plot_weights(classes, trace, output=weight_out)
-    # Convert weights to summarized information of median and std
-    weights = weights.groupby("Class").agg({"Weights": ["median", "std"]})
-    weights = weights.sort_values(("Weights", "median"), ascending=False)
-    weights.to_csv(os.path.join(opts.out_dir, "weights.tsv"), sep="\t")
+    save_weights(trace, classes, opts.out_dir)
 
     # Output posterior predictive p-values
     ppp_out = os.path.join(opts.out_dir, "pvals.tsv")
