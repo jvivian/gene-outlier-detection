@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-VERSION=0.3.3a
+VERSION=0.3.4a
 
 # Build and push Docker
 docker build -t jvivian/gene-outlier-detection:${VERSION} ./docker

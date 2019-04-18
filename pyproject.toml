@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "gene-outlier-detection"
-version = "0.3.3a"
+version = "0.3.4a"
 description = "A Bayesian model for identifying outliers for N-of-1 samples in gene expression data"
 authors = ["John Vivian <jtvivian@gmail.com>"]
 
@@ -22,6 +22,7 @@ pytest = "^3.0"
 
 [tool.poetry.scripts]
 outlier-detection = 'gene_outlier_detection.main:cli'
+
 [build-system]
 requires = ["poetry>=0.12"]
 build-backend = "poetry.masonry.api"

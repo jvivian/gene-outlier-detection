@@ -233,7 +233,7 @@ def run(opts: Namespace, num_backgrounds: int):
     help="Number of metadata columns to skip in background matrix. All columns after this value should be genes",
 )
 @click.option(
-    "-n",
+    "-u",
     "--num-backgrounds",
     "n_bg",
     default=5,
