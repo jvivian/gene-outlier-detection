@@ -1,5 +1,4 @@
 import os
-import shutil
 import time
 import warnings
 from argparse import Namespace
@@ -8,6 +7,7 @@ import click
 import pandas as pd
 import scipy.stats as st
 
+from gene_outlier_detection.cli import common_cli
 from gene_outlier_detection.lib import display_runtime
 from gene_outlier_detection.lib import get_sample
 from gene_outlier_detection.lib import load_df
@@ -28,6 +28,8 @@ def iter_run(opts: Namespace):
     :param opts: Namespace object containing CLI variables
     :return: None
     """
+    from gene_outlier_detection.lib import save_traceplot
+
     # Load input data
     click.echo("Loading input data")
     opts.sample = get_sample(opts.sample, opts.name)
@@ -64,7 +66,14 @@ def iter_run(opts: Namespace):
     t0 = time.time()
     train_set, model, trace, ppp = None, None, None, None
     for i in range(1, opts.n_bg + 1):
-        i = opts.n_bg if opts.disable_iter else i
+        if opts.disable_iter:
+            click.secho(
+                f"Performing one run with {i} backgrounds due to disable-iter flag",
+                fg="red",
+            )
+            i = opts.n_bg
+
+        # Execute single model run with i background datasets
         train_set, model, trace, ppp = run(opts, i)
 
         # Add PPP to DataFrame of all pvalues collected
@@ -106,8 +115,6 @@ def iter_run(opts: Namespace):
             f.write("\n".join(pearson_correlations))
 
     # Traceplot - if there is only one background then b = 1 instead of a Dirichlet RV
-    from gene_outlier_detection.lib import save_traceplot
-
     b = True if opts.n_bg > 1 else False
     save_traceplot(trace, opts.out_dir, b=b)
 
@@ -124,9 +131,6 @@ def iter_run(opts: Namespace):
     model_out = os.path.join(opts.out_dir, "model.pkl")
     pickle_model(model_out, model, trace)
 
-    # Cleanup
-    shutil.rmtree(opts.theano_dir)
-
 
 def run(opts: Namespace, num_backgrounds: int):
     """
@@ -136,6 +140,8 @@ def run(opts: Namespace, num_backgrounds: int):
     :param num_backgrounds: Number of background sets to run
     :return: All unique components of a run: training samples, model, trace, and posterior pvalues
     """
+    from gene_outlier_detection.lib import run_model
+
     # Select training set
     click.echo(f"\nSelecting {num_backgrounds} background sets")
     train_set = opts.df[
@@ -157,9 +163,7 @@ def run(opts: Namespace, num_backgrounds: int):
     else:
         training_genes = opts.base_genes
 
-    # Run model and output runtime - importing here as base_compiledir must be init before
-    from gene_outlier_detection.lib import run_model
-
+    # Run model
     t0 = time.time()
     model, trace = run_model(opts.sample, train_set, training_genes, group=opts.group)
     display_runtime(t0)
@@ -172,102 +176,7 @@ def run(opts: Namespace, num_backgrounds: int):
 
 
 @click.command()
-@click.option(
-    "-s",
-    "--sample",
-    required=True,
-    type=str,
-    help="Sample(s) by Genes matrix (csv/tsv/hd5)",
-)
-@click.option(
-    "-b",
-    "--background",
-    required=True,
-    type=str,
-    help="Samples by Genes matrix with metadata columns first "
-    "(including a categorical column that discriminates samples by some category) (csv/tsv/hd5)",
-)
-@click.option(
-    "-n",
-    "--name",
-    required=True,
-    type=str,
-    help="Name of row in the sample matrix that corresponds to the desired sample to run",
-)
-@click.option(
-    "-l",
-    "--gene-list",
-    type=str,
-    help="Single column file of genes to train model and derive p-values for",
-)
-@click.option(
-    "-o",
-    "--out-dir",
-    default="./",
-    type=str,
-    show_default=True,
-    help="Output directory",
-)
-@click.option(
-    "-g",
-    "--group",
-    default="tissue",
-    show_default=True,
-    type=str,
-    help="Name of the categorical column vector in the background matrix",
-)
-@click.option(
-    "-c",
-    "--col-skip",
-    default=1,
-    show_default=True,
-    type=int,
-    help="Number of metadata columns to skip in background matrix. All columns after this value should be genes",
-)
-@click.option(
-    "-u",
-    "--num-backgrounds",
-    "n_bg",
-    default=5,
-    type=int,
-    show_default=True,
-    help="Maximum number of background categorical groups to include in the model training. "
-    "Model will run starting with one background dataset and iteratively add more until the p-values converge.",
-)
-@click.option(
-    "-m",
-    "--max-genes",
-    default=125,
-    type=int,
-    show_default=True,
-    help="Maximum number of genes to run. I.e. if a gene list is provided, how many additional genes to add via "
-    "SelectKBest. Useful for improving beta coefficients if gene list does not contain enough tissue-specific "
-    "genes. A good rule of thumb is to set --max-genes to 1.5 times the number of genes in --gene-list",
-)
-@click.option(
-    "-t",
-    "--num-training-genes",
-    "n_train",
-    default=50,
-    type=int,
-    show_default=True,
-    help="If gene-list is empty, will use SelectKBest to choose gene set. Not typically useful outside of testing.",
-)
-@click.option(
-    "-p",
-    "--pval-convergence-cutoff",
-    "pval_cutoff",
-    default=0.99,
-    type=float,
-    show_default=True,
-    help="P-value Pearson correlation cutoff to stop adding additional background datasets.",
-)
-@click.option(
-    "-d",
-    "--disable-iter",
-    is_flag=True,
-    help="This flag disables iterative runs and runs one model with `--num-backgrounds`",
-)
+@common_cli
 def cli(
     sample,
     background,
@@ -292,3 +201,7 @@ def cli(
     os.environ["THEANO_FLAGS"] = f"base_compiledir={opts.theano_dir}"
     os.makedirs(opts.theano_dir, exist_ok=True)
     iter_run(opts)
+
+
+if __name__ == "__main__":
+    cli()

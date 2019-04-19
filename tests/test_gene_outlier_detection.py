@@ -51,31 +51,27 @@ def ppc(model_output, load_data):
 
 
 @pytest.fixture
-def load_opts(tmpdir, load_data, datadir):
-    from argparse import Namespace
-
-    # Get paths
-    df_path = os.path.join(datadir, "normal.tsv")
-    sample_path = os.path.join(datadir, "input.tsv")
-    # Build opts object
-    opts = Namespace()
-    sample, df, genes = load_data
-    opts.sample = sample_path
-    opts.background = df_path
-    opts.df = df
-    opts.group = "tissue"
-    opts.name = "TCGA-DJ-A2PX-01"
-    opts.n_train = 10
-    opts.max_genes = 10
-    opts.pval_cutoff = 0.99
-    opts.col_skip = 5
-    opts.n_bg = 2
-    opts.gene_list = None
-    opts.disable_iter = None
-    opts.genes = opts.df.columns[opts.col_skip :]
-    opts.out_dir = tmpdir
-    opts.theano_dir = os.path.join(opts.out_dir, ".theano")
-    return opts
+def parameters(datadir):
+    return [
+        "--sample",
+        os.path.join(datadir, "input.tsv"),
+        "--background",
+        os.path.join(datadir, "normal.tsv"),
+        "--name",
+        "TCGA-DJ-A2PX-01",
+        "--out-dir",
+        datadir,
+        "--group",
+        "tissue",
+        "--col-skip",
+        "5",
+        "--num-backgrounds",
+        "2",
+        "--max-genes",
+        "10",
+        "--num-training-genes",
+        "10",
+    ]
 
 
 def test_select_k_best_genes(datadir):
@@ -195,34 +191,20 @@ def test_pickle_model(tmpdir, model_output):
     assert os.path.exists(out)
 
 
-def test_main(datadir):
+def test_main(datadir, parameters):
     from gene_outlier_detection.main import cli
 
     runner = CliRunner()
-    result = runner.invoke(
-        cli,
-        [
-            "--sample",
-            os.path.join(datadir, "input.tsv"),
-            "--background",
-            os.path.join(datadir, "normal.tsv"),
-            "--name",
-            "TCGA-DJ-A2PX-01",
-            "--out-dir",
-            datadir,
-            "--group",
-            "tissue",
-            "--col-skip",
-            "5",
-            "--num-backgrounds",
-            "2",
-            "--max-genes",
-            "10",
-            "--num-training-genes",
-            "10",
-        ],
-        catch_exceptions=False,
-    )
+    result = runner.invoke(cli, parameters, catch_exceptions=False)
+    assert result.exit_code == 0
+    assert os.path.exists(os.path.join(datadir, "TCGA-DJ-A2PX-01"))
+
+
+def test_meta_runner(datadir, parameters):
+    from gene_outlier_detection.meta_runner import cli
+
+    runner = CliRunner()
+    result = runner.invoke(cli, parameters, catch_exceptions=False)
     assert result.exit_code == 0
     assert os.path.exists(os.path.join(datadir, "TCGA-DJ-A2PX-01"))
 
@@ -258,30 +240,3 @@ def test_save_weights(tmpdir, load_data, model_output):
     save_weights(t, classes, tmpdir)
     assert os.path.exists(os.path.join(tmpdir, "weights.png"))
     assert os.path.exists(os.path.join(tmpdir, "weights.tsv"))
-
-
-"""
-def test_run(load_opts):
-    from gene_outlier_detection.main import run
-    from gene_outlier_detection.lib import get_sample
-    from gene_outlier_detection.lib import pca_distances
-    from gene_outlier_detection.lib import select_k_best_genes
-
-    opts = load_opts
-    opts.sample = get_sample(opts.sample, opts.name)
-    opts.ranks = pca_distances(opts.sample, opts.df, opts.genes, opts.group)
-    train_set = opts.df[opts.df[opts.group].isin(opts.ranks.head(opts.n_bg)["Group"])]
-    opts.base_genes = select_k_best_genes(
-        train_set, opts.genes, opts.group, opts.n_train
-    )
-    os.makedirs(opts.theano_dir, exist_ok=True)
-    run(opts, 1)
-
-
-def test_iter_run(load_opts):
-    from gene_outlier_detection.main import iter_run
-
-    opts = load_opts
-    os.makedirs(opts.theano_dir, exist_ok=True)
-    iter_run(opts)
-"""

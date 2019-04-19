@@ -13,6 +13,7 @@ from sklearn.decomposition import PCA
 from sklearn.feature_selection import SelectKBest
 from sklearn.metrics import pairwise_distances
 from tqdm.autonotebook import tqdm
+import pymc3 as pm
 
 
 def select_k_best_genes(
@@ -338,8 +339,6 @@ def display_runtime(t0: float, total=False) -> Tuple[float, str]:
 
 
 def save_traceplot(trace, out_dir, b=True):
-    import pymc3 as pm
-
     fig, axarr = plt.subplots(3, 2, figsize=(10, 5))
     varnames = ["a", "b", "eps"] if b else ["a", "eps"]
     pm.traceplot(trace, varnames=varnames, ax=axarr)

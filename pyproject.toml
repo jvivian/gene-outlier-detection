@@ -21,7 +21,7 @@ tables = "^3.5"
 pytest = "^3.0"
 
 [tool.poetry.scripts]
-outlier-detection = 'gene_outlier_detection.main:cli'
+outlier-detection = 'gene_outlier_detection.meta_runner:cli'
 
 [build-system]
 requires = ["poetry>=0.12"]
