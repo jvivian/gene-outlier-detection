@@ -10,13 +10,12 @@ import scipy.stats as st
 
 from gene_outlier_detection.lib import display_runtime
 from gene_outlier_detection.lib import get_sample
-from gene_outlier_detection.lib import save_weights
 from gene_outlier_detection.lib import load_df
 from gene_outlier_detection.lib import pca_distances
 from gene_outlier_detection.lib import pickle_model
 from gene_outlier_detection.lib import posterior_predictive_check
 from gene_outlier_detection.lib import posterior_predictive_pvals
-from gene_outlier_detection.lib import save_traceplot
+from gene_outlier_detection.lib import save_weights
 from gene_outlier_detection.lib import select_k_best_genes
 
 warnings.filterwarnings("ignore")
@@ -107,6 +106,8 @@ def iter_run(opts: Namespace):
             f.write("\n".join(pearson_correlations))
 
     # Traceplot - if there is only one background then b = 1 instead of a Dirichlet RV
+    from gene_outlier_detection.lib import save_traceplot
+
     b = True if opts.n_bg > 1 else False
     save_traceplot(trace, opts.out_dir, b=b)
 
@@ -122,6 +123,9 @@ def iter_run(opts: Namespace):
     # Save Model
     model_out = os.path.join(opts.out_dir, "model.pkl")
     pickle_model(model_out, model, trace)
+
+    # Cleanup
+    shutil.rmtree(opts.theano_dir)
 
 
 def run(opts: Namespace, num_backgrounds: int):
@@ -153,12 +157,9 @@ def run(opts: Namespace, num_backgrounds: int):
     else:
         training_genes = opts.base_genes
 
-    # Set env variable for base_compiledir before importing model
-    os.environ["THEANO_FLAGS"] = f"base_compiledir={opts.theano_dir}"
-    os.makedirs(opts.theano_dir, exist_ok=True)
+    # Run model and output runtime - importing here as base_compiledir must be init before
     from gene_outlier_detection.lib import run_model
 
-    # Run model and output runtime
     t0 = time.time()
     model, trace = run_model(opts.sample, train_set, training_genes, group=opts.group)
     display_runtime(t0)
@@ -166,9 +167,6 @@ def run(opts: Namespace, num_backgrounds: int):
     # PPC / PPP
     ppc = posterior_predictive_check(trace, training_genes)
     ppp = posterior_predictive_pvals(opts.sample, ppc)
-
-    # Cleanup
-    shutil.rmtree(opts.theano_dir)
 
     return train_set, model, trace, ppp
 
@@ -291,5 +289,6 @@ def cli(
     opts = Namespace(**locals())
     opts.out_dir = os.path.abspath(os.path.join(out_dir, name))
     opts.theano_dir = os.path.join(opts.out_dir, ".theano")
+    os.environ["THEANO_FLAGS"] = f"base_compiledir={opts.theano_dir}"
     os.makedirs(opts.theano_dir, exist_ok=True)
     iter_run(opts)
