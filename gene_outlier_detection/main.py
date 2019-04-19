@@ -110,9 +110,10 @@ def iter_run(opts: Namespace):
     b = True if opts.n_bg > 1 else False
     save_traceplot(trace, opts.out_dir, b=b)
 
-    # Weight plot and weight table
-    classes = train_set[opts.group].unique()
-    save_weights(trace, classes, opts.out_dir)
+    # Weight plot and weight table if num_backgrounds > 1
+    if opts.n_bg > 1:
+        classes = train_set[opts.group].unique()
+        save_weights(trace, classes, opts.out_dir)
 
     # Output posterior predictive p-values
     ppp_out = os.path.join(opts.out_dir, "pvals.tsv")
