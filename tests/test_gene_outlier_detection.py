@@ -51,31 +51,21 @@ def ppc(model_output, load_data):
 
 
 @pytest.fixture
-def load_opts(tmpdir, load_data, datadir):
-    from argparse import Namespace
-
-    # Get paths
-    df_path = os.path.join(datadir, "normal.tsv")
-    sample_path = os.path.join(datadir, "input.tsv")
-    # Build opts object
-    opts = Namespace()
-    sample, df, genes = load_data
-    opts.sample = sample_path
-    opts.background = df_path
-    opts.df = df
-    opts.group = "tissue"
-    opts.name = "TCGA-DJ-A2PX-01"
-    opts.n_train = 10
-    opts.max_genes = 10
-    opts.pval_cutoff = 0.99
-    opts.col_skip = 5
-    opts.n_bg = 2
-    opts.gene_list = None
-    opts.disable_iter = None
-    opts.genes = opts.df.columns[opts.col_skip :]
-    opts.out_dir = tmpdir
-    opts.theano_dir = os.path.join(opts.out_dir, ".theano")
-    return opts
+def parameters(datadir):
+    return [
+        "--sample",
+        os.path.join(datadir, "input.hdf"),
+        "--background",
+        os.path.join(datadir, "normal.tsv"),
+        "--name",
+        "TCGA-DJ-A2PX-01",
+        "--out-dir",
+        datadir,
+        "--group",
+        "tissue",
+        "--col-skip",
+        "5",
+    ]
 
 
 def test_select_k_best_genes(datadir):
@@ -83,7 +73,7 @@ def test_select_k_best_genes(datadir):
     import warnings
 
     warnings.filterwarnings("ignore")
-    df = pd.read_csv(os.path.join(datadir, "normal.tsv"), sep="\t", index_col=0)
+    df = pd.read_hdf(os.path.join(datadir, "normal.hdf"))
     genes = df.columns[5:]
     assert select_k_best_genes(df, genes, n=5) == [
         "AP1M2",
@@ -97,7 +87,7 @@ def test_select_k_best_genes(datadir):
 def test_get_sample(datadir):
     from gene_outlier_detection.lib import get_sample
 
-    sample_path = os.path.join(datadir, "input.tsv")
+    sample_path = os.path.join(datadir, "input.csv")
     sample = get_sample(sample_path, "TCGA-DJ-A2PX-01")
     assert sample.shape[0] == 26549
     assert sample.tissue == "Thyroid"
@@ -106,7 +96,7 @@ def test_get_sample(datadir):
 def test_load_df(datadir):
     from gene_outlier_detection.lib import load_df
 
-    df_path = os.path.join(datadir, "normal.tsv")
+    df_path = os.path.join(datadir, "normal.csv")
     df = load_df(df_path)
     assert df.shape == (10, 26549)
 
@@ -195,34 +185,43 @@ def test_pickle_model(tmpdir, model_output):
     assert os.path.exists(out)
 
 
-def test_main(datadir):
+"""
+def test_main(datadir, parameters):
     from gene_outlier_detection.main import cli
 
     runner = CliRunner()
-    result = runner.invoke(
-        cli,
+    result = runner.invoke(cli, parameters, catch_exceptions=False)
+    assert result.exit_code == 0
+    assert os.path.exists(os.path.join(datadir, "TCGA-DJ-A2PX-01"))
+"""
+
+
+def test_meta_runner(datadir, parameters):
+    from gene_outlier_detection.meta_runner import cli
+
+    parameters.extend(["--num-training-genes", "10", "-m", "10", "-nbg", "2"])
+    runner = CliRunner()
+    result = runner.invoke(cli, parameters, catch_exceptions=False)
+    assert result.exit_code == 0
+    assert os.path.exists(os.path.join(datadir, "TCGA-DJ-A2PX-01"))
+
+
+def test_gene_list_and_disable_iter(datadir, parameters):
+    from gene_outlier_detection.meta_runner import cli
+
+    parameters.extend(
         [
-            "--sample",
-            os.path.join(datadir, "input.tsv"),
-            "--background",
-            os.path.join(datadir, "normal.tsv"),
-            "--name",
-            "TCGA-DJ-A2PX-01",
-            "--out-dir",
-            datadir,
-            "--group",
-            "tissue",
-            "--col-skip",
-            "5",
-            "--num-backgrounds",
-            "2",
-            "--max-genes",
-            "10",
-            "--num-training-genes",
-            "10",
-        ],
-        catch_exceptions=False,
+            "-l",
+            os.path.join(datadir, "test-drug-genes.txt"),
+            "-d",
+            "-m",
+            "11",
+            "-nbg",
+            "1",
+        ]
     )
+    runner = CliRunner()
+    result = runner.invoke(cli, parameters, catch_exceptions=False)
     assert result.exit_code == 0
     assert os.path.exists(os.path.join(datadir, "TCGA-DJ-A2PX-01"))
 
@@ -260,28 +259,20 @@ def test_save_weights(tmpdir, load_data, model_output):
     assert os.path.exists(os.path.join(tmpdir, "weights.tsv"))
 
 
-"""
-def test_run(load_opts):
-    from gene_outlier_detection.main import run
+def test_missing_sample(datadir):
     from gene_outlier_detection.lib import get_sample
-    from gene_outlier_detection.lib import pca_distances
-    from gene_outlier_detection.lib import select_k_best_genes
 
-    opts = load_opts
-    opts.sample = get_sample(opts.sample, opts.name)
-    opts.ranks = pca_distances(opts.sample, opts.df, opts.genes, opts.group)
-    train_set = opts.df[opts.df[opts.group].isin(opts.ranks.head(opts.n_bg)["Group"])]
-    opts.base_genes = select_k_best_genes(
-        train_set, opts.genes, opts.group, opts.n_train
-    )
-    os.makedirs(opts.theano_dir, exist_ok=True)
-    run(opts, 1)
+    sample_path = os.path.join(datadir, "input.tsv")
+    with pytest.raises(RuntimeError):
+        get_sample(sample_path, "foo")
 
 
-def test_iter_run(load_opts):
-    from gene_outlier_detection.main import iter_run
+def test_bad_extension(datadir):
+    from gene_outlier_detection.lib import get_sample, load_df
 
-    opts = load_opts
-    os.makedirs(opts.theano_dir, exist_ok=True)
-    iter_run(opts)
-"""
+    sample_path = os.path.join(datadir, "input.foo")
+
+    with pytest.raises(RuntimeError):
+        get_sample(sample_path, "foo")
+    with pytest.raises(RuntimeError):
+        load_df(sample_path)
