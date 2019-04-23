@@ -226,7 +226,7 @@ def calculate_weights(groups: List[str], trace) -> pd.DataFrame:
     return weight_by_class
 
 
-def plot_weights(groups: List[str], trace, output: str = None):
+def plot_weights(groups: List[str], trace, output: str = None) -> pd.DataFrame:
     """
     Plot model coefficients associated with each group
 
@@ -337,7 +337,14 @@ def display_runtime(t0: float, total=False) -> Tuple[float, str]:
     return runtime, unit
 
 
-def save_traceplot(trace, out_dir, b=True):
+def save_traceplot(trace, out_dir: str, b: bool = True) -> None:
+    """
+    Saves traceplot of PyMC3 run
+
+    :param trace: PyMC3 trace
+    :param out_dir: Output directory of plot
+    :param b: Boolean indicating whether there is a beta parameter
+    """
     import pymc3 as pm
 
     if b:
@@ -351,10 +358,19 @@ def save_traceplot(trace, out_dir, b=True):
     fig.savefig(traceplot_out)
 
 
-def save_weights(trace, classes, out_dir):
+def save_weights(trace, groups: List[str], out_dir: str) -> None:
+    """
+    Save weights as both a table and plot
+
+    :param trace: PyMC3 trace
+    :param groups: List of groups trained in the model
+    :param out_dir: Output directory for weights
+    """
     weight_out = os.path.join(out_dir, "weights.png")
-    weights = plot_weights(classes, trace, output=weight_out)
+    weights = plot_weights(groups, trace, output=weight_out)
     # Convert weights to summarized information of median and std
     weights = weights.groupby("Class").agg({"Weights": ["median", "std"]})
     weights = weights.sort_values(("Weights", "median"), ascending=False)
+    weights.columns = ['Median', 'std']
+    weights.index.name = None
     weights.to_csv(os.path.join(out_dir, "weights.tsv"), sep="\t")
