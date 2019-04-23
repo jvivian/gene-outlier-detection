@@ -371,6 +371,6 @@ def save_weights(trace, groups: List[str], out_dir: str) -> None:
     # Convert weights to summarized information of median and std
     weights = weights.groupby("Class").agg({"Weights": ["median", "std"]})
     weights = weights.sort_values(("Weights", "median"), ascending=False)
-    weights.columns = ['Median', 'std']
+    weights.columns = ["Median", "std"]
     weights.index.name = None
     weights.to_csv(os.path.join(out_dir, "weights.tsv"), sep="\t")
