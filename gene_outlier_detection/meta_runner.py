@@ -56,7 +56,6 @@ def cli(
         parameters.append("-d")
     if gene_list:
         parameters.extend(["-l", gene_list])
-    click.echo(parameters)
     subprocess.check_call(parameters)
 
     # Delete theano dir

@@ -128,7 +128,7 @@ def test_plot_weights(tmpdir, model_output):
 
     output = os.path.join(tmpdir, "plot.png")
     m, t = model_output
-    plot_weights(["Thryoid", "Brain"], t, output)
+    plot_weights(["Thyroid", "Brain"], t, output)
     assert os.path.exists(output)
 
 

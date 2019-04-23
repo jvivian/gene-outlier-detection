@@ -10,9 +10,9 @@ install:
   - pip install coveralls
   - pip install black
 script:
-  - pytest --cov=gene_outlier_detection/
   - black --check gene_outlier_detection/
   - black --check tests/
+  - pytest --cov=gene_outlier_detection/
 after_success:
   - coveralls
 before_deploy:
