@@ -1,4 +1,5 @@
 import os
+import shutil
 import time
 import warnings
 from argparse import Namespace
@@ -36,6 +37,8 @@ def iter_run(opts: Namespace):
     opts.df = load_df(opts.background)
     opts.df = opts.df.sort_values(opts.group)
     opts.genes = opts.df.columns[opts.col_skip :]
+    pval_runs_out = os.path.join(opts.out_dir, "_pval_runs.tsv")
+    pearson_out = os.path.join(opts.out_dir, "_pearson_correlations.txt")
 
     # Calculate ranks of background datasets
     opts.ranks = pca_distances(opts.sample, opts.df, opts.genes, opts.group)
@@ -79,6 +82,7 @@ def iter_run(opts: Namespace):
         # Add PPP to DataFrame of all pvalues collected
         pval_runs = pd.concat([pval_runs, ppp], axis=1, sort=True).dropna()
         pval_runs.columns = list(range(len(pval_runs.columns)))
+        pval_runs.to_csv(pval_runs_out, sep="\t")
 
         # Early stop conditions
         if i == 1:
@@ -86,10 +90,16 @@ def iter_run(opts: Namespace):
         if opts.n_bg == 1 or opts.disable_iter:
             break
 
-        # Check Pearson correlation of last two runs between
+        # Check Pearson correlation of last two runs
         x, y = pval_runs.columns[-2:]
         pr, _ = st.pearsonr(pval_runs[x], pval_runs[y])
         pearson_correlations.append(str(pr))
+
+        # Output Pearson correlations from run
+        with open(pearson_out, "w") as f:
+            f.write("\n".join(pearson_correlations))
+
+        # Check if p-values have converged and break out of loop if so
         if pr > opts.pval_cutoff:
             click.secho(
                 f"P-values converged at {pr} across {len(pval_runs)} genes.", fg="green"
@@ -103,16 +113,6 @@ def iter_run(opts: Namespace):
 
     # Total runtime of all iterations of model
     display_runtime(t0, total=True)
-
-    # Output P-value runs
-    pval_runs_out = os.path.join(opts.out_dir, "_pval_runs.tsv")
-    pval_runs.to_csv(pval_runs_out, sep="\t")
-
-    # Output Pearson correlations from run
-    if pearson_correlations:
-        pearson_out = os.path.join(opts.out_dir, "_pearson_correlations.txt")
-        with open(pearson_out, "w") as f:
-            f.write("\n".join(pearson_correlations))
 
     # Traceplot - if there is only one background then b = 1 instead of a Dirichlet RV
     b = True if opts.n_bg > 1 else False
@@ -130,6 +130,13 @@ def iter_run(opts: Namespace):
     # Save Model
     model_out = os.path.join(opts.out_dir, "model.pkl")
     pickle_model(model_out, model, trace)
+
+    # Move _info files to subdir _info
+    output = os.listdir(opts.out_dir)
+    info_files = [os.path.join(opts.out_dir, x) for x in output if x.startswith("_")]
+    info_dir = os.path.join(opts.out_dir, "_info")
+    os.mkdir(info_dir)
+    [shutil.copy(x, info_dir) for x in info_files]
 
 
 def run(opts: Namespace, num_backgrounds: int):
