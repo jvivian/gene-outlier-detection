@@ -235,7 +235,8 @@ def test_save_traceplot(tmpdir, model_output):
     _, t = model_output
     save_traceplot(t, tmpdir)
     assert os.path.exists(os.path.join(tmpdir, "traceplot.png"))
-    assert os.path.exists(os.path.join(tmpdir, '_parameters.tsv'))
+    assert os.path.exists(os.path.join(tmpdir, "_parameters.tsv"))
+
 
 def test_save_weights(tmpdir, load_data, model_output):
     from gene_outlier_detection.lib import save_weights
