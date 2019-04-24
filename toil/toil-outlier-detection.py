@@ -77,7 +77,8 @@ def run_outlier_model(
     _fixPermissions(tool=image, workDir=job.tempDir)
 
     out_dir = os.path.join(job.tempDir, name)
-    os.makedirs(out_dir, exist_ok=True)
+    if not os.path.exists(out_dir):
+        os.makedirs(out_dir)
     shutil.move(out_dir, args.out_dir)
 
 
