@@ -174,10 +174,39 @@ def run_model(
     ys = {}
     for gene in training_genes:
         for i, dataset in enumerate(classes):
-            cat_mu, cat_sd = st.norm.fit(df[df[group] == dataset][gene])
-            # Standard deviation can't be initialized to 0, so set to 0.1
-            cat_sd = 0.1 if cat_sd == 0 else cat_sd
-            ys[f"{gene}={dataset}"] = (cat_mu, cat_sd)
+            # "intuitive" prior parameters
+            prior_mean = 0.0
+            prior_std_dev = 1.0
+            pseudocounts = 1.0
+
+            # convert to prior params of normal-inverse gamma
+            kappa_0 = pseudocounts
+            mu_0 = prior_mean
+            alpha_0 = 0.5 * pseudocounts
+            beta_0 = 0.5 / prior_std_dev ** 2
+
+            # collect summary statistics for data
+            observations = np.array(df[df[group] == dataset][gene])
+            n = len(observations)
+            obs_sum = np.sum(observations)
+            obs_mean = obs_sum / n
+            obs_ssd = np.sum(np.square(observations - obs_mean))
+
+            # compute the posterior params
+            kappa_n = kappa_0 + n
+            mu_n = (kappa_0 * mu_0 + obs_sum) / (kappa_0 + n)
+            alpha_n = alpha_0 + 0.5 * n
+            beta_n = beta_0 + 0.5 * (
+                obs_ssd + kappa_0 * n * (obs_mean - mu_0) ** 2 / (kappa_0 + n)
+            )
+
+            # from https://www.seas.harvard.edu/courses/cs281/papers/murphy-2007.pdf, equation (110)
+            # convert to the params of a PyMC student-t (i.e. integrate out the prior)
+            mu = mu_n
+            nu = 2.0 * alpha_n
+            lambd = alpha_n * kappa_n / (beta_n * (kappa_n + 1.0))
+
+            ys[f"{gene}={dataset}"] = (mu, nu, lambd)
 
     click.echo("Building model")
     with pm.Model() as model:
@@ -192,7 +221,8 @@ def run_model(
             mu = a
             for i, dataset in enumerate(classes):
                 name = f"{gene}={dataset}"
-                y = pm.Normal(name, *ys[name])
+                m, nu, lambd = ys[name]
+                y = pm.StudentT(name, nu=nu, mu=m, lam=lambd)
                 mu += b[i] * y
 
             # Embed mu in laplacian distribution
