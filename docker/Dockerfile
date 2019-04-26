@@ -1,6 +1,7 @@
 FROM continuumio/anaconda3
 
-RUN apt-get update && apt-get install -y libhdf5-serial-dev build-essential gcc
+RUN apt-get update && apt-get install -y libhdf5-serial-dev build-essential gcc g++
+RUN conda install -y blas mkl mkl-service
 
 RUN pip install gene-outlier-detection==0.5.0a
 

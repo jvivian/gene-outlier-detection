@@ -135,8 +135,8 @@ def iter_run(opts: Namespace):
     output = os.listdir(opts.out_dir)
     info_files = [os.path.join(opts.out_dir, x) for x in output if x.startswith("_")]
     info_dir = os.path.join(opts.out_dir, "_info")
-    os.mkdir(info_dir)
-    [shutil.copy(x, info_dir) for x in info_files]
+    os.makedirs(info_dir, exist_ok=True)
+    [shutil.move(x, info_dir) for x in info_files]
 
 
 def run(opts: Namespace, num_backgrounds: int):
