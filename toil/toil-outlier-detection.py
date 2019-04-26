@@ -66,7 +66,7 @@ def run_outlier_model(
         parameters.append("--disable-iter")
     if gene_id:
         parameters.extend(["--gene-list", "/data/gene-list.txt"])
-    image = "jvivian/gene-outlier-detection"
+    image = "jvivian/gene-outlier-detection:0.6.0a"
     apiDockerCall(
         job=job,
         image=image,
@@ -77,8 +77,8 @@ def run_outlier_model(
     _fixPermissions(tool=image, workDir=job.tempDir)
 
     out_dir = os.path.join(job.tempDir, name)
-    if not os.path.exists(out_dir):
-        os.makedirs(out_dir)
+    if not os.path.exists(args.out_dir):
+        os.makedirs(args.out_dir)
     shutil.move(out_dir, args.out_dir)
 
 
