@@ -112,7 +112,13 @@ def iter_run(opts: Namespace):
             )
 
     # Total runtime of all iterations of model
-    display_runtime(t0, total=True)
+    runtime, unit = display_runtime(t0, total=True)
+
+    # Output run command and run time
+    with open(os.path.join(opts.out_dir, "_run_info.tsv"), "w") as f:
+        for k in vars(opts):
+            f.write(f"{k}\t{getattr(opts, k)}\n")
+        f.write(f"Runtime\t{runtime} {unit}")
 
     # Traceplot - if there is only one background then b = 1 instead of a Dirichlet RV
     b = True if opts.n_bg > 1 else False
