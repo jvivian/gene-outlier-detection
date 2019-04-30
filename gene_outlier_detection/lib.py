@@ -391,7 +391,7 @@ def save_traceplot(trace, out_dir: str, b: bool = True) -> None:
     trace_vals["median"] = [np.median(trace["a"]), np.median(trace["eps"])]
     trace_vals["std"] = [np.std(trace["a"]), np.std(trace["eps"])]
     trace_df = pd.DataFrame(trace_vals, index=["a", "eps"])
-    trace_df.to_csv(os.path.join(out_dir, "_parameters.tsv"), sep="\t")
+    trace_df.to_csv(os.path.join(out_dir, "_model_params.tsv"), sep="\t")
 
 
 def save_weights(trace, groups: List[str], out_dir: str) -> None:
