@@ -2,6 +2,7 @@ import argparse
 import os
 import shutil
 
+import pandas as pd
 from toil.common import Toil
 from toil.job import Job
 from toil.lib.docker import apiDockerCall, _fixPermissions
@@ -18,8 +19,14 @@ def workflow(job, samples, args):
 
 
 def run_outlier_model(
-    job, name, sample_id, background_id, gene_id, args, cores=2, memory="5G"
+        job, sample_info, sample_id, background_id, gene_id, args, cores=2, memory="5G"
 ):
+    # Unpack sample information and add sample specific options
+    name, sample_opts = sample_info
+    if sample_opts:
+        for key, value in sample_opts.iteritems():
+            args[key] = value
+
     # Check if output already exists and don't run if so
     output = os.path.join(args.out_dir, name)
     if os.path.exists(output):
@@ -97,7 +104,7 @@ def cli():
         required=True,
         type=str,
         help="Samples by Genes matrix with metadata columns first (including a group column that "
-        "discriminates samples by some category) (csv/tsv/hd5)",
+             "discriminates samples by some category) (csv/tsv/hd5)",
     )
     parser.add_argument(
         "--manifest",
@@ -132,8 +139,8 @@ def cli():
         default=100,
         type=int,
         help="Maximum number of genes to run. I.e. if a gene list is input, how many additional"
-        "genes to add via SelectKBest. Useful for improving beta coefficients"
-        "if gene list does not contain enough tissue-specific genes.",
+             "genes to add via SelectKBest. Useful for improving beta coefficients"
+             "if gene list does not contain enough tissue-specific genes.",
     )
     parser.add_argument(
         "--num-training-genes",
@@ -195,14 +202,46 @@ def partitions(l, partition_size):
     :param int partition_size: Size of partitions
     """
     for i in xrange(0, len(l), partition_size):
-        yield l[i : i + partition_size]
+        yield l[i: i + partition_size]
+
+
+def parse_manifest(manifest_path):
+    """
+    Parses manifest into a list where each sample is a tuple:
+
+        ( SAMPLE_NAME, {args: values} )
+
+    If the manifest is single column (has no unique options per sample),
+    then the second item in the tuple contains None
+
+    :param str manifest_path: Path to manifest file
+    :return:
+        Sample information with type: List[Tuple[str, dict]]
+    """
+    df = pd.read_csv(manifest_path, sep='\t')
+
+    # If manifest is single-column, then return samples and no options
+    if len(df.columns) == 1:
+        samples = [(x.strip(), None) for x in open(manifest_path, 'r').readlines() if not x.isspace()]
+        return samples
+
+    # Otherwise return samples and option dictionary
+    else:
+        samples = []
+        df = pd.read_csv(manifest_path, sep='\t')
+        sample_ids = list(df.iloc[:, 0])
+        df = df.drop(df.columns[0], axis=1)
+        for i, row in df.iterrows():
+            sample_opts = dict()
+            for opt in row.index:
+                sample_opts[opt] = row[opt]
+            samples.append((sample_ids[i], sample_opts))
+        return samples
 
 
 def main():
     args = cli()
-    samples = [
-        x.strip() for x in open(args.manifest, "r").readlines() if not x.isspace()
-    ]
+    samples = parse_manifest(args.manifest)
 
     # Start Toil run
     with Toil(args) as toil:
