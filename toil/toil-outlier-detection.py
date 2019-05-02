@@ -25,7 +25,7 @@ def run_outlier_model(
     name, sample_opts = sample_info
     if sample_opts:
         for key, value in sample_opts.iteritems():
-            args[key] = value
+            setattr(args, key, value)
 
     # Check if output already exists and don't run if so
     output = os.path.join(args.out_dir, name)
