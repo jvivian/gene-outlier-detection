@@ -5,6 +5,7 @@ import warnings
 from argparse import Namespace
 
 import click
+import numpy as np
 import pandas as pd
 import scipy.stats as st
 
@@ -44,7 +45,7 @@ def iter_run(opts: Namespace):
     opts.ranks = pca_distances(opts.sample, opts.df, opts.genes, opts.group)
     ranks_out = os.path.join(opts.out_dir, "ranks.tsv")
     opts.ranks.to_csv(ranks_out, sep="\t")
-    opts.n_bg = opts.n_bg if opts.n_bg < len(opts.ranks) else len(opts.ranks)
+    opts.n_bg = min(opts.n_bg, len(opts.ranks))
 
     # Parse training genes
     if opts.gene_list is None:
@@ -71,7 +72,7 @@ def iter_run(opts: Namespace):
     for i in range(1, opts.n_bg + 1):
         if opts.disable_iter:
             click.secho(
-                f"Performing one run with {i} backgrounds due to disable-iter flag",
+                f"Performing one run with {opts.n_bg} backgrounds due to `disable-iter` flag",
                 fg="red",
             )
             i = opts.n_bg
@@ -117,10 +118,15 @@ def iter_run(opts: Namespace):
     # Output run command and run time
     with open(os.path.join(opts.out_dir, "_run_info.tsv"), "w") as f:
         for k in vars(opts):
-            if k in ["sample", "genes", "df"]:
+            if k in ["sample", "genes", "df", "ranks", "base_genes"]:
                 continue
             f.write(f"{k}\t{getattr(opts, k)}\n")
-        f.write(f"Runtime\t{runtime} {unit}")
+        f.write(f"Runtime\t{runtime} {unit}\n")
+        # Add model error
+        err_med = np.median(trace["eps"])
+        err_std = np.std(trace["eps"])
+        f.write(f"epsilon_median\t{err_med}\n")
+        f.write(f"epsilon_std\t{err_std}\n")
 
     # Traceplot - if there is only one background then b = 1 instead of a Dirichlet RV
     b = True if opts.n_bg > 1 else False

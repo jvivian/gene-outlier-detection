@@ -110,10 +110,11 @@ def pca_distances(
         DataFrame of pairwise distances
     """
     # Check n_components value which must be between 0 and min(n_samples, n_features)
+    click.echo("Ranking background datasets by {group}")
     n_samples, n_features = df.shape
     if n_components >= min(n_samples, n_features):
         n_components = min(n_samples, n_features)
-        click.secho(f"Number of components changed to {n_components}", fg="yellow")
+        click.secho(f"Number of PCA components changed to {n_components}", fg="yellow")
 
     # Concatenate sample to background
     concat = df.append(sample)
@@ -210,15 +211,14 @@ def run_model(
 
     click.echo("Building model")
     with pm.Model() as model:
-        # Linear model priors
-        a = pm.Normal("a", mu=0, sd=1)
+        # Convex model priors
         b = [1] if len(classes) == 1 else pm.Dirichlet("b", a=np.ones(len(classes)))
         # Model error
         eps = pm.InverseGamma("eps", 1, 1)
 
-        # Linear model declaration
+        # Convex model declaration
         for gene in tqdm(training_genes):
-            mu = a
+            mu = 0
             for i, dataset in enumerate(classes):
                 name = f"{gene}={dataset}"
                 m, nu, lambd = ys[name]
@@ -245,7 +245,7 @@ def calculate_weights(groups: List[str], trace) -> pd.DataFrame:
     """
     class_col = []
     for c in groups:
-        class_col.extend([c for _ in range(len(trace["a"]))])
+        class_col.extend([c for _ in range(len(trace["eps"]))])
 
     weight_by_class = pd.DataFrame(
         {
@@ -306,7 +306,7 @@ def _gene_ppc(trace, gene: str) -> np.array:
         Random variates representing PPC of the gene
     """
     y_gene = [x for x in trace.varnames if x.startswith(f"{gene}=")]
-    b = trace["a"]
+    b = 0
     if "b" in trace.varnames:
         for i, y_name in enumerate(y_gene):
             b += trace["b"][:, i] * trace[y_name]
@@ -377,21 +377,11 @@ def save_traceplot(trace, out_dir: str, b: bool = True) -> None:
     """
     import pymc3 as pm
 
-    if b:
-        fig, axarr = plt.subplots(3, 2, figsize=(10, 5))
-        varnames = ["a", "b", "eps"]
-    else:
-        fig, axarr = plt.subplots(2, 2, figsize=(10, 5))
-        varnames = ["a", "eps"]
-    pm.traceplot(trace, varnames=varnames, ax=axarr)
+    varnames = ["b", "eps"] if b else ["eps"]
+    pm.traceplot(trace, varnames=varnames)
     traceplot_out = os.path.join(out_dir, "traceplot.png")
+    fig = plt.gcf()
     fig.savefig(traceplot_out)
-    # Save values
-    trace_vals = {}
-    trace_vals["median"] = [np.median(trace["a"]), np.median(trace["eps"])]
-    trace_vals["std"] = [np.std(trace["a"]), np.std(trace["eps"])]
-    trace_df = pd.DataFrame(trace_vals, index=["a", "eps"])
-    trace_df.to_csv(os.path.join(out_dir, "_model_params.tsv"), sep="\t")
 
 
 def save_weights(trace, groups: List[str], out_dir: str) -> None:
