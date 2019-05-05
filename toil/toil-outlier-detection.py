@@ -19,7 +19,7 @@ def workflow(job, samples, args):
 
 
 def run_outlier_model(
-        job, sample_info, sample_id, background_id, gene_id, args, cores=2, memory="5G"
+    job, sample_info, sample_id, background_id, gene_id, args, cores=2, memory="5G"
 ):
     # Unpack sample information and add sample specific options
     name, sample_opts = sample_info
@@ -104,7 +104,7 @@ def cli():
         required=True,
         type=str,
         help="Samples by Genes matrix with metadata columns first (including a group column that "
-             "discriminates samples by some category) (csv/tsv/hd5)",
+        "discriminates samples by some category) (csv/tsv/hd5)",
     )
     parser.add_argument(
         "--manifest",
@@ -139,8 +139,8 @@ def cli():
         default=100,
         type=int,
         help="Maximum number of genes to run. I.e. if a gene list is input, how many additional"
-             "genes to add via SelectKBest. Useful for improving beta coefficients"
-             "if gene list does not contain enough tissue-specific genes.",
+        "genes to add via SelectKBest. Useful for improving beta coefficients"
+        "if gene list does not contain enough tissue-specific genes.",
     )
     parser.add_argument(
         "--num-training-genes",
@@ -202,7 +202,7 @@ def partitions(l, partition_size):
     :param int partition_size: Size of partitions
     """
     for i in xrange(0, len(l), partition_size):
-        yield l[i: i + partition_size]
+        yield l[i : i + partition_size]
 
 
 def parse_manifest(manifest_path):
@@ -218,17 +218,21 @@ def parse_manifest(manifest_path):
     :return:
         Sample information with type: List[Tuple[str, dict]]
     """
-    df = pd.read_csv(manifest_path, sep='\t')
+    df = pd.read_csv(manifest_path, sep="\t")
 
     # If manifest is single-column, then return samples and no options
     if len(df.columns) == 1:
-        samples = [(x.strip(), None) for x in open(manifest_path, 'r').readlines() if not x.isspace()]
+        samples = [
+            (x.strip(), None)
+            for x in open(manifest_path, "r").readlines()
+            if not x.isspace()
+        ]
         return samples
 
     # Otherwise return samples and option dictionary
     else:
         samples = []
-        df = pd.read_csv(manifest_path, sep='\t')
+        df = pd.read_csv(manifest_path, sep="\t")
         sample_ids = list(df.iloc[:, 0])
         df = df.drop(df.columns[0], axis=1)
         for i, row in df.iterrows():

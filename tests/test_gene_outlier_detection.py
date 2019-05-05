@@ -188,26 +188,18 @@ def test_pickle_model(tmpdir, model_output):
 def test_meta_runner(datadir, parameters):
     from gene_outlier_detection.meta_runner import cli
 
-    parameters.extend(["--num-training-genes", "10", "-m", "10", "-nbg", "2"])
+    parameters.extend(["--num-training-genes", "10", "-m", "10", "-d", "-nbg", "1"])
     runner = CliRunner()
     result = runner.invoke(cli, parameters, catch_exceptions=False)
     assert result.exit_code == 0
     assert os.path.exists(os.path.join(datadir, "TCGA-DJ-A2PX-01"))
 
 
-def test_gene_list_and_disable_iter(datadir, parameters):
+def test_gene_list(datadir, parameters):
     from gene_outlier_detection.meta_runner import cli
 
     parameters.extend(
-        [
-            "-l",
-            os.path.join(datadir, "test-drug-genes.txt"),
-            "-d",
-            "-m",
-            "11",
-            "-nbg",
-            "1",
-        ]
+        ["-l", os.path.join(datadir, "test-drug-genes.txt"), "-m", "11", "-nbg", "2"]
     )
     runner = CliRunner()
     result = runner.invoke(cli, parameters, catch_exceptions=False)
@@ -235,7 +227,6 @@ def test_save_traceplot(tmpdir, model_output):
     _, t = model_output
     save_traceplot(t, tmpdir)
     assert os.path.exists(os.path.join(tmpdir, "traceplot.png"))
-    assert os.path.exists(os.path.join(tmpdir, "_model_params.tsv"))
 
 
 def test_save_weights(tmpdir, load_data, model_output):
