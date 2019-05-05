@@ -214,7 +214,7 @@ def run_model(
         a = pm.Normal("a", mu=0, sd=1)
         b = [1] if len(classes) == 1 else pm.Dirichlet("b", a=np.ones(len(classes)))
         # Model error
-        eps = pm.InverseGamma("eps", 2.1, 1)
+        eps = pm.InverseGamma("eps", 1, 1)
 
         # Linear model declaration
         for gene in tqdm(training_genes):
