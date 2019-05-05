@@ -8,19 +8,7 @@ from toil.job import Job
 from toil.lib.docker import apiDockerCall, _fixPermissions
 
 
-def workflow(job, samples, args):
-    sample_id = job.fileStore.writeGlobalFile(args.sample)
-    background_id = job.fileStore.writeGlobalFile(args.background)
-    gene_id = job.fileStore.writeGlobalFile(args.gene_list) if args.gene_list else None
-
-    job.addChildJobFn(
-        map_job, run_outlier_model, samples, sample_id, background_id, gene_id, args
-    )
-
-
-def run_outlier_model(
-    job, sample_info, sample_id, background_id, gene_id, args, cores=2, memory="5G"
-):
+def run_outlier_model(job, sample_info, args, cores=2, memory="5G"):
     # Unpack sample information and add sample specific options
     name, sample_opts = sample_info
     if sample_opts:
@@ -38,13 +26,11 @@ def run_outlier_model(
     bg_ext = os.path.splitext(args.background)[1]
     bg_name = "bg_matrix{}".format(bg_ext)
 
-    # Read in input file from jobStore
-    job.fileStore.readGlobalFile(sample_id, os.path.join(job.tempDir, sample_name))
-    job.fileStore.readGlobalFile(background_id, os.path.join(job.tempDir, bg_name))
-    if gene_id:
-        job.fileStore.readGlobalFile(
-            gene_id, os.path.join(job.tempDir, "gene-list.txt")
-        )
+    # Copy input files to work directory
+    shutil.copy(args.sample, os.path.join(job.tempDir, sample_name))
+    shutil.copy(args.background, os.path.join(job.tempDir, bg_name))
+    if args.gene_list:
+        shutil.copy(args.gene_list, os.path.join(job.tempDir, "gene-list.txt"))
 
     # Define parameters and call Docker container
     parameters = [
@@ -71,7 +57,7 @@ def run_outlier_model(
     ]
     if args.disable_iter:
         parameters.append("--disable-iter")
-    if gene_id:
+    if args.gene_list:
         parameters.extend(["--gene-list", "/data/gene-list.txt"])
     image = "jvivian/gene-outlier-detection:0.8.0a"
     apiDockerCall(
@@ -250,7 +236,7 @@ def main():
     # Start Toil run
     with Toil(args) as toil:
         if not toil.options.restart:
-            toil.start(Job.wrapJobFn(workflow, samples, args))
+            toil.start(Job.wrapJobFn(map_job, run_outlier_model, samples, args))
         else:
             toil.restart()
 
