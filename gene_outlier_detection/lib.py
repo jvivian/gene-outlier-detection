@@ -16,7 +16,7 @@ from tqdm.autonotebook import tqdm
 
 
 def select_k_best_genes(
-    df: pd.DataFrame, genes: List[str], group="tissue", n=50
+        df: pd.DataFrame, genes: List[str], group="tissue", n=50
 ) -> List[str]:
     """
     Select K genes based on ANOVA F-value
@@ -89,11 +89,11 @@ def load_df(df_path: str) -> pd.DataFrame:
 
 
 def pca_distances(
-    sample: pd.Series,
-    df: pd.DataFrame,
-    genes: List[str],
-    group: str = "tissue",
-    n_components=25,
+        sample: pd.Series,
+        df: pd.DataFrame,
+        genes: List[str],
+        group: str = "tissue",
+        n_components=25,
 ):
     """
     Runs PCA to create an embedding of the sample and background dataset, then calculates distance to each
@@ -110,7 +110,7 @@ def pca_distances(
         DataFrame of pairwise distances
     """
     # Check n_components value which must be between 0 and min(n_samples, n_features)
-    click.echo("Ranking background datasets by {group}")
+    click.echo(f"Ranking background datasets by {group}")
     n_samples, n_features = df.shape
     if n_components >= min(n_samples, n_features):
         n_components = min(n_samples, n_features)
@@ -146,11 +146,11 @@ def pca_distances(
 
 
 def run_model(
-    sample: pd.Series,
-    df: pd.DataFrame,
-    training_genes: List[str],
-    group: str = "tissue",
-    **kwargs,
+        sample: pd.Series,
+        df: pd.DataFrame,
+        training_genes: List[str],
+        group: str = "tissue",
+        **kwargs,
 ):
     """
     Run Bayesian model using prefit Y's for each Gene and Dataset distribution
@@ -163,7 +163,7 @@ def run_model(
         **kwargs:
 
     Returns:
-        Model and Trace from PyMC3
+        Model and Trace from PyMC3 and fits from Ys
     """
     # Importing here since Theano base_compiledir needs to be set prior to import
     import pymc3 as pm
@@ -172,8 +172,46 @@ def run_model(
     df = df[[group] + training_genes]
 
     # Collect fits
-    ys = {}
-    for gene in training_genes:
+    x_fits = calculate_fits(df, classes, training_genes, group=group)
+    click.echo("Building model")
+    with pm.Model() as model:
+        # Convex model priors
+        b = [1] if len(classes) == 1 else pm.Dirichlet("b", a=np.ones(len(classes)))
+        # Model error
+        eps = pm.InverseGamma("eps", 1, 1)
+
+        # Convex model declaration
+        for gene in tqdm(training_genes):
+            y = 0
+            gene_eps = 0
+            for i, dataset in enumerate(classes):
+                name = f"{gene}={dataset}"
+                nu, m, lam = x_fits[name]
+                x = pm.StudentT(name, nu=nu, mu=m, lam=lam)
+                y += b[i] * x
+                gene_eps += b[i] * np.sqrt(1/lam)
+
+            # Add Laplacian error
+            pm.Laplace(gene, mu=y, b=gene_eps * eps, observed=sample[gene])
+        # Sample
+        trace = pm.sample(**kwargs)
+    return model, trace, x_fits
+
+
+def calculate_fits(df: pd.DataFrame, classes: List[str], genes: List[str], group: str = 'tissue'):
+    """
+    Calculate student-T fit for every gene/dataset expression pair
+
+    :param df: Gene expression DataFrame
+    :param classes: Class labels for background datasets
+    :param genes: List of genes to calculate fits for
+    :param group: Group label to separate classes by
+    :return: Returns mapping of gene/dataset pair to nu/mu/lambda of T distribution
+    """
+
+    click.echo('Fitting StudentT for every gene/dataset pair')
+    x_fits = {}
+    for gene in tqdm(genes):
         for i, dataset in enumerate(classes):
             # "intuitive" prior parameters
             prior_mean = 0.0
@@ -198,38 +236,17 @@ def run_model(
             mu_n = (kappa_0 * mu_0 + obs_sum) / (kappa_0 + n)
             alpha_n = alpha_0 + 0.5 * n
             beta_n = beta_0 + 0.5 * (
-                obs_ssd + kappa_0 * n * (obs_mean - mu_0) ** 2 / (kappa_0 + n)
+                    obs_ssd + kappa_0 * n * (obs_mean - mu_0) ** 2 / (kappa_0 + n)
             )
 
             # from https://www.seas.harvard.edu/courses/cs281/papers/murphy-2007.pdf, equation (110)
             # convert to the params of a PyMC student-t (i.e. integrate out the prior)
             mu = mu_n
             nu = 2.0 * alpha_n
-            lambd = alpha_n * kappa_n / (beta_n * (kappa_n + 1.0))
+            lam = alpha_n * kappa_n / (beta_n * (kappa_n + 1.0))
+            x_fits[f"{gene}={dataset}"] = (nu, mu, lam)
 
-            ys[f"{gene}={dataset}"] = (mu, nu, lambd)
-
-    click.echo("Building model")
-    with pm.Model() as model:
-        # Convex model priors
-        b = [1] if len(classes) == 1 else pm.Dirichlet("b", a=np.ones(len(classes)))
-        # Model error
-        eps = pm.InverseGamma("eps", 1, 1)
-
-        # Convex model declaration
-        for gene in tqdm(training_genes):
-            mu = 0
-            for i, dataset in enumerate(classes):
-                name = f"{gene}={dataset}"
-                m, nu, lambd = ys[name]
-                y = pm.StudentT(name, nu=nu, mu=m, lam=lambd)
-                mu += b[i] * y
-
-            # Embed mu in laplacian distribution
-            pm.Laplace(gene, mu=mu, b=eps, observed=sample[gene])
-        # Sample
-        trace = pm.sample(**kwargs)
-    return model, trace
+    return x_fits
 
 
 def calculate_weights(groups: List[str], trace) -> pd.DataFrame:
@@ -277,24 +294,44 @@ def plot_weights(groups: List[str], trace, output: str = None) -> pd.DataFrame:
     return weights
 
 
-def posterior_predictive_check(trace, genes: List[str]) -> Dict[str, np.array]:
+def average_epsilon(trace, x_fits, genes):
+    eps = []
+    for gene in genes:
+        y_gene = [x for x in trace.varnames if x.startswith(f"{gene}=")]
+        gene_eps = 0
+        for i, y_name in enumerate(y_gene):
+            _, _, lam = x_fits[y_name]
+            sd = np.sqrt(1/lam)
+            if 'b' in trace.varnames:
+                gene_eps += trace['b'][:,i] * sd
+            else:
+                gene_eps += 1 * sd
+        eps.extend(gene_eps)
+    return eps
+
+
+def posterior_predictive_check(trace, x_fits, genes: List[str]) -> Dict[str, np.array]:
     """
     Posterior predictive check for a list of genes trained in the model
 
     Args:
         trace: PyMC3 trace
+        x_fits: Student-T fits for X-distribution
         genes: List of genes of interest
 
     Returns:
         Dictionary of [genes, array of posterior sampling]
     """
     d = {}
+    avg_eps = average_epsilon(trace, x_fits, genes)
+    click.echo(f"\tAVERAGE EPS: {np.median(avg_eps)}")
+    click.echo(f"\tTRACE EPS: {np.median(trace['eps'])}")
     for gene in genes:
-        d[gene] = _gene_ppc(trace, gene)
+        d[gene] = _gene_ppc(trace, x_fits, gene, avg_eps)
     return d
 
 
-def _gene_ppc(trace, gene: str) -> np.array:
+def _gene_ppc(trace, x_fits, gene: str, avg_eps) -> np.array:
     """
     Calculate posterior predictive for a gene
 
@@ -306,20 +343,23 @@ def _gene_ppc(trace, gene: str) -> np.array:
         Random variates representing PPC of the gene
     """
     y_gene = [x for x in trace.varnames if x.startswith(f"{gene}=")]
-    b = 0
-    if "b" in trace.varnames:
-        for i, y_name in enumerate(y_gene):
-            b += trace["b"][:, i] * trace[y_name]
+    y = 0
+    gene_eps = 0
+    for i, y_name in enumerate(y_gene):
+        _, _, lam = x_fits[y_name]
+        sd = np.sqrt(1 / lam)
+        if 'b' in trace.varnames:
+            y += trace["b"][:, i] * trace[y_name]
+            gene_eps += trace['b'][:, i] * sd
+        else:
+            y += 1 * trace[y_name]
+            gene_eps += 1 * sd
 
-    # If no 'b' in trace.varnames then there was only one comparison group
-    else:
-        for i, y_name in enumerate(y_gene):
-            b += 1 * trace[y_name]
-    return np.random.laplace(loc=b, scale=trace["eps"])
+    return st.laplace.rvs(loc=y, scale=np.median(avg_eps))
 
 
 def posterior_predictive_pvals(
-    sample: pd.Series, ppc: Dict[str, np.array]
+        sample: pd.Series, ppc: Dict[str, np.array]
 ) -> pd.DataFrame:
     """
     Produces Series of posterior p-values for all genes in the Posterior Predictive Check (PPC) dictionary
