@@ -186,11 +186,11 @@ def run(opts: Namespace, num_backgrounds: int):
 
     # Run model
     t0 = time.time()
-    model, trace = run_model(opts.sample, train_set, training_genes, group=opts.group)
+    model, trace, fits = run_model(opts.sample, train_set, training_genes, group=opts.group)
     display_runtime(t0)
 
     # PPC / PPP
-    ppc = posterior_predictive_check(trace, training_genes)
+    ppc = posterior_predictive_check(trace, fits, training_genes)
     ppp = posterior_predictive_pvals(opts.sample, ppc)
 
     return train_set, model, trace, ppp

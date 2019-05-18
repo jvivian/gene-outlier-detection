@@ -15,6 +15,7 @@ from sklearn.metrics import pairwise_distances
 from tqdm.autonotebook import tqdm
 
 
+# TODO: Convert this library into a class
 def select_k_best_genes(
     df: pd.DataFrame, genes: List[str], group="tissue", n=50
 ) -> List[str]:
@@ -110,7 +111,7 @@ def pca_distances(
         DataFrame of pairwise distances
     """
     # Check n_components value which must be between 0 and min(n_samples, n_features)
-    click.echo("Ranking background datasets by {group}")
+    click.echo(f"Ranking background datasets by {group}")
     n_samples, n_features = df.shape
     if n_components >= min(n_samples, n_features):
         n_components = min(n_samples, n_features)
@@ -172,9 +173,50 @@ def run_model(
     df = df[[group] + training_genes]
 
     # Collect fits
-    ys = {}
-    for gene in training_genes:
-        for i, dataset in enumerate(classes):
+    fits = t_fits(df, training_genes, classes, group)
+
+    click.echo("Building model")
+    with pm.Model() as model:
+        # Convex model priors
+        b = [1] if len(classes) == 1 else pm.Dirichlet("b", a=np.ones(len(classes)))
+        # Model error
+        eps = pm.InverseGamma("eps", 1, 1)
+
+        # Convex model declaration
+        for gene in tqdm(training_genes):
+            y, norm_term = 0, 0
+            for i, dataset in enumerate(classes):
+                name = f"{gene}={dataset}"
+                m, nu, lam, sd = fits[name]
+                x = pm.StudentT(name, nu=nu, mu=m, lam=lam)
+                y += (b[i] / sd) * x
+                norm_term += b[i] / sd
+
+            # y_g = \frac{\sum_d \frac{\beta * x}{\sigma} + \epsilon}{\sum_d\frac{\beta}{\sigma}}
+            # Embed mu in laplacian distribution
+            pm.Laplace(gene, mu=y/norm_term, b=eps/norm_term, observed=sample[gene])
+        # Sample
+        trace = pm.sample(**kwargs)
+    return model, trace, fits
+
+
+# TODO: Change this to return a DF and use itertuples downstream
+def t_fits(df: pd.DataFrame, genes: List[str], backgrounds: List[str], group: str):
+    """
+    StudentT distribution fits for every dataset/gene pair
+
+    Args:
+        df: Background dataframe to use in comparison
+        genes: Genes to fit
+        backgrounds: Background datasets to fit
+        group: Column in background dataset to use as labels
+
+    Returns:
+        StudentT fits for every gene-dataset pair
+    """
+    fits = {}
+    for gene in genes:
+        for i, dataset in enumerate(backgrounds):
             # "intuitive" prior parameters
             prior_mean = 0.0
             prior_std_dev = 1.0
@@ -205,31 +247,10 @@ def run_model(
             # convert to the params of a PyMC student-t (i.e. integrate out the prior)
             mu = mu_n
             nu = 2.0 * alpha_n
-            lambd = alpha_n * kappa_n / (beta_n * (kappa_n + 1.0))
+            lam = alpha_n * kappa_n / (beta_n * (kappa_n + 1.0))
 
-            ys[f"{gene}={dataset}"] = (mu, nu, lambd)
-
-    click.echo("Building model")
-    with pm.Model() as model:
-        # Convex model priors
-        b = [1] if len(classes) == 1 else pm.Dirichlet("b", a=np.ones(len(classes)))
-        # Model error
-        eps = pm.InverseGamma("eps", 1, 1)
-
-        # Convex model declaration
-        for gene in tqdm(training_genes):
-            mu = 0
-            for i, dataset in enumerate(classes):
-                name = f"{gene}={dataset}"
-                m, nu, lambd = ys[name]
-                y = pm.StudentT(name, nu=nu, mu=m, lam=lambd)
-                mu += b[i] * y
-
-            # Embed mu in laplacian distribution
-            pm.Laplace(gene, mu=mu, b=eps, observed=sample[gene])
-        # Sample
-        trace = pm.sample(**kwargs)
-    return model, trace
+            fits[f"{gene}={dataset}"] = (mu, nu, lam, np.sqrt(1/lam))
+    return fits
 
 
 def calculate_weights(groups: List[str], trace) -> pd.DataFrame:
@@ -277,12 +298,13 @@ def plot_weights(groups: List[str], trace, output: str = None) -> pd.DataFrame:
     return weights
 
 
-def posterior_predictive_check(trace, genes: List[str]) -> Dict[str, np.array]:
+def posterior_predictive_check(trace, fits, genes: List[str]) -> Dict[str, np.array]:
     """
     Posterior predictive check for a list of genes trained in the model
 
     Args:
         trace: PyMC3 trace
+        fits: StudentT fits for background dataset/gene expression
         genes: List of genes of interest
 
     Returns:
@@ -290,32 +312,32 @@ def posterior_predictive_check(trace, genes: List[str]) -> Dict[str, np.array]:
     """
     d = {}
     for gene in genes:
-        d[gene] = _gene_ppc(trace, gene)
+        d[gene] = _gene_ppc(trace, fits, gene)
     return d
 
 
-def _gene_ppc(trace, gene: str) -> np.array:
+def _gene_ppc(trace, fits, gene: str) -> np.array:
     """
     Calculate posterior predictive for a gene
 
     Args:
         trace: PyMC3 Trace
+        fits: StudentT fits for background dataset/gene expression
         gene: Gene of interest
 
     Returns:
         Random variates representing PPC of the gene
     """
     y_gene = [x for x in trace.varnames if x.startswith(f"{gene}=")]
-    b = 0
-    if "b" in trace.varnames:
-        for i, y_name in enumerate(y_gene):
-            b += trace["b"][:, i] * trace[y_name]
+    y, norm_term = 0, 0
+    multiple_backgrounds = 'b' in trace.varnames
+    for i, y_name in enumerate(y_gene):
+        nu, mu, lam, sd = fits[y_name]
+        b = trace["b"][:, i] if multiple_backgrounds else 1
+        y += (b/sd) * trace[y_name]
+        norm_term += b / sd
 
-    # If no 'b' in trace.varnames then there was only one comparison group
-    else:
-        for i, y_name in enumerate(y_gene):
-            b += 1 * trace[y_name]
-    return np.random.laplace(loc=b, scale=trace["eps"])
+    return np.random.laplace(loc=y/norm_term, scale=trace["eps"] / norm_term)
 
 
 def posterior_predictive_pvals(
