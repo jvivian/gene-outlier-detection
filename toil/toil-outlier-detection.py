@@ -59,7 +59,7 @@ def run_outlier_model(job, sample_info, args, cores=2, memory="5G"):
         parameters.append("--disable-iter")
     if args.gene_list:
         parameters.extend(["--gene-list", "/data/gene-list.txt"])
-    image = "jvivian/gene-outlier-detection:0.8.0a"
+    image = "jvivian/gene-outlier-detection:0.9.0a"
     apiDockerCall(
         job=job,
         image=image,
