@@ -186,7 +186,7 @@ def run(opts: Namespace, num_backgrounds: int):
 
     # Run model
     t0 = time.time()
-    model, trace, fits = run_model(opts.sample, train_set, training_genes, group=opts.group)
+    model, trace, fits = run_model(opts.sample, train_set, training_genes, opts.group)
     display_runtime(t0)
 
     # PPC / PPP

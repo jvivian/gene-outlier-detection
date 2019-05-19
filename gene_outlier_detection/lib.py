@@ -194,7 +194,7 @@ def run_model(
 
             # y_g = \frac{\sum_d \frac{\beta * x}{\sigma} + \epsilon}{\sum_d\frac{\beta}{\sigma}}
             # Embed mu in laplacian distribution
-            pm.Laplace(gene, mu=y/norm_term, b=eps/norm_term, observed=sample[gene])
+            pm.Laplace(gene, mu=y / norm_term, b=eps / norm_term, observed=sample[gene])
         # Sample
         trace = pm.sample(**kwargs)
     return model, trace, fits
@@ -249,7 +249,7 @@ def t_fits(df: pd.DataFrame, genes: List[str], backgrounds: List[str], group: st
             nu = 2.0 * alpha_n
             lam = alpha_n * kappa_n / (beta_n * (kappa_n + 1.0))
 
-            fits[f"{gene}={dataset}"] = (mu, nu, lam, np.sqrt(1/lam))
+            fits[f"{gene}={dataset}"] = (mu, nu, lam, np.sqrt(1 / lam))
     return fits
 
 
@@ -330,14 +330,14 @@ def _gene_ppc(trace, fits, gene: str) -> np.array:
     """
     y_gene = [x for x in trace.varnames if x.startswith(f"{gene}=")]
     y, norm_term = 0, 0
-    multiple_backgrounds = 'b' in trace.varnames
+    multiple_backgrounds = "b" in trace.varnames
     for i, y_name in enumerate(y_gene):
         nu, mu, lam, sd = fits[y_name]
         b = trace["b"][:, i] if multiple_backgrounds else 1
-        y += (b/sd) * trace[y_name]
+        y += (b / sd) * trace[y_name]
         norm_term += b / sd
 
-    return np.random.laplace(loc=y/norm_term, scale=trace["eps"] / norm_term)
+    return np.random.laplace(loc=(y / norm_term), scale=(trace["eps"] / norm_term))
 
 
 def posterior_predictive_pvals(
