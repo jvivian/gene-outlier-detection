@@ -46,8 +46,8 @@ def ppc(model_output, load_data):
 
     sample, df, genes = load_data
     training_genes = select_k_best_genes(df, genes, n=10)
-    m, t = model_output
-    return posterior_predictive_check(t, training_genes)
+    m, t, fits = model_output
+    return posterior_predictive_check(t, fits, training_genes)
 
 
 @pytest.fixture
@@ -111,14 +111,14 @@ def test_pca_distances(load_data):
 
 
 def test_run_model(model_output):
-    m, t = model_output
+    m, t, fits = model_output
     assert "b" in t.varnames
 
 
 def test_calculate_weights(model_output):
     from gene_outlier_detection.lib import calculate_weights
 
-    m, t = model_output
+    m, t, fits = model_output
     weights = calculate_weights(["Thyroid", "Brain"], t)
     assert list(weights.Class.unique()) == ["Thyroid", "Brain"]
 
@@ -127,7 +127,7 @@ def test_plot_weights(tmpdir, model_output):
     from gene_outlier_detection.lib import plot_weights
 
     output = os.path.join(tmpdir, "plot.png")
-    m, t = model_output
+    m, t, fits = model_output
     plot_weights(["Thyroid", "Brain"], t, output)
     assert os.path.exists(output)
 
@@ -140,8 +140,8 @@ def test_posterior_predictive_check(ppc):
 def test__gene_ppc(model_output):
     from gene_outlier_detection.lib import _gene_ppc
 
-    m, t = model_output
-    assert len(_gene_ppc(t, "PAX8")) == 1000
+    m, t, fits = model_output
+    assert len(_gene_ppc(t, fits, "PAX8")) == 1000
 
 
 def test_posterior_predictive_pvals(load_data, ppc):
@@ -179,7 +179,7 @@ def test__ppp_one_gene():
 def test_pickle_model(tmpdir, model_output):
     from gene_outlier_detection.lib import pickle_model
 
-    m, t = model_output
+    m, t, fits = model_output
     out = os.path.join(tmpdir, "model.pkl")
     pickle_model(out, m, t)
     assert os.path.exists(out)
@@ -224,7 +224,7 @@ def test_display_runtime():
 def test_save_traceplot(tmpdir, model_output):
     from gene_outlier_detection.lib import save_traceplot
 
-    _, t = model_output
+    _, t, fits = model_output
     save_traceplot(t, tmpdir)
     assert os.path.exists(os.path.join(tmpdir, "traceplot.png"))
 
@@ -233,7 +233,7 @@ def test_save_weights(tmpdir, load_data, model_output):
     from gene_outlier_detection.lib import save_weights
 
     sample, df, genes = load_data
-    m, t = model_output
+    m, t, fits = model_output
     classes = df.tissue.unique()
     save_weights(t, classes, tmpdir)
     assert os.path.exists(os.path.join(tmpdir, "weights.png"))
