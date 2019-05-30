@@ -8,7 +8,7 @@ from toil.job import Job
 from toil.lib.docker import apiDockerCall, _fixPermissions
 
 
-def run_outlier_model(job, sample_info, args, cores=2, memory="5G"):
+def run_outlier_model(job, sample_info, args, cores=3, memory="15G"):
     # Unpack sample information and add sample specific options
     name, sample_opts = sample_info
     if sample_opts:
