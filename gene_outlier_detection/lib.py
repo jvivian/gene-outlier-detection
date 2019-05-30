@@ -89,53 +89,36 @@ def load_df(df_path: str) -> pd.DataFrame:
     return df
 
 
-def pca_distances(
+def anova_distances(
     sample: pd.Series,
     df: pd.DataFrame,
     genes: List[str],
     group: str = "tissue",
-    n_components=25,
+    n_genes=2000,
 ):
     """
-    Runs PCA to create an embedding of the sample and background dataset, then calculates distance to each
-    group via pairwise distance
+    Calculates distance to each group via pairwise distance using top N ANOVA genes
 
     Args:
         sample: n-of-1 sample. Gets own label
         df: background dataset
         genes: genes to use for pairwise distance
         group: Column to use as class discriminator
-        n_components: Number of components to use in PCA. 25 is the inflection point for GTEx
+        n_genes: Number of ANOVA genes to use
 
     Returns:
         DataFrame of pairwise distances
     """
-    # Check n_components value which must be between 0 and min(n_samples, n_features)
-    click.echo(f"Ranking background datasets by {group}")
-    n_samples, n_features = df.shape
-    if n_components >= min(n_samples, n_features):
-        n_components = min(n_samples, n_features)
-        click.secho(f"Number of PCA components changed to {n_components}", fg="yellow")
-
-    # Concatenate sample to background
-    concat = df.append(sample)
-
-    # PCA embedding
-    embedding = pd.DataFrame(
-        PCA(n_components=n_components).fit_transform(concat[genes])
-    )
-    embedding[group] = concat[group].values
-    components = list(embedding.columns[:-1])
-
-    # Separate sample and background
-    sample = embedding.iloc[-1]
-    df = embedding.iloc[:-1]
-
-    # Pairwise distances
-    dist = pairwise_distances(
-        np.array(sample[components]).reshape(1, -1), df[components]
-    )
-    dist = pd.DataFrame([dist.ravel(), df[group]]).T
+    click.echo(f"Ranking background datasets by {group} via ANOVA")
+    if n_genes >= len(genes):
+        click.secho(
+            f"# of ANOVA genes {n_genes} greater than {len(genes)}", fg="yellow"
+        )
+        skb_genes = genes
+    else:
+        skb_genes = select_k_best_genes(df, genes, n=n_genes)
+    dist = pairwise_distances(np.array(sample[skb_genes]).reshape(1, -1), df[skb_genes])
+    dist = pd.DataFrame([dist.ravel(), df["tissue"]]).T
     dist.columns = ["Distance", "Group"]
 
     # Median by group and sort
@@ -364,7 +347,9 @@ def posterior_predictive_pvals(
 
 def _ppp_one_gene(z_true, z):
     """Calculates ppp for one gene"""
-    return round(np.sum(z_true < z) / len(z), 5)
+    # Rule of thumb: for 100,000 samples, report p-values to the thousands place
+    # Add pseudocount for instances where outlier is more extreme than every other sample
+    return round(np.sum(z_true < z) + 1 / len(z) + 1, 3)
 
 
 def pickle_model(output_path: str, model, trace):
