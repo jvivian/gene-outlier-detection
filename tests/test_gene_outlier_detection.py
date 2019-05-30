@@ -101,13 +101,14 @@ def test_load_df(datadir):
     assert df.shape == (10, 26549)
 
 
-def test_pca_distances(load_data):
-    from gene_outlier_detection.lib import pca_distances
+def test_anova_distances(load_data):
+    from gene_outlier_detection.lib import anova_distances
 
     sample, df, genes = load_data
-    dist = pca_distances(sample, df, genes)
+    dist = anova_distances(sample, df, genes)
+    print(dist)
     assert list(dist.Group) == ["Thyroid", "Brain"]
-    assert [int(x) for x in dist.MedianDistance] == [169, 267]
+    assert [int(x) for x in dist.MedianDistance] == [57, 131]
 
 
 def test_run_model(model_output):
@@ -173,7 +174,7 @@ def test__ppp_one_gene():
 
     z = np.array(range(10))
     z_true = 5
-    assert _ppp_one_gene(z_true, z) == 0.4
+    assert _ppp_one_gene(z_true, z) == 0.455
 
 
 def test_pickle_model(tmpdir, model_output):

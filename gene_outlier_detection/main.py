@@ -13,7 +13,7 @@ from gene_outlier_detection.cli import common_cli
 from gene_outlier_detection.lib import display_runtime
 from gene_outlier_detection.lib import get_sample
 from gene_outlier_detection.lib import load_df
-from gene_outlier_detection.lib import pca_distances
+from gene_outlier_detection.lib import anova_distances
 from gene_outlier_detection.lib import pickle_model
 from gene_outlier_detection.lib import posterior_predictive_check
 from gene_outlier_detection.lib import posterior_predictive_pvals
@@ -42,7 +42,7 @@ def iter_run(opts: Namespace):
     pearson_out = os.path.join(opts.out_dir, "_pearson_correlations.txt")
 
     # Calculate ranks of background datasets
-    opts.ranks = pca_distances(opts.sample, opts.df, opts.genes, opts.group)
+    opts.ranks = anova_distances(opts.sample, opts.df, opts.genes, opts.group)
     ranks_out = os.path.join(opts.out_dir, "ranks.tsv")
     opts.ranks.to_csv(ranks_out, sep="\t")
     opts.n_bg = min(opts.n_bg, len(opts.ranks))

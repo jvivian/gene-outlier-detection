@@ -110,4 +110,4 @@ docker run --rm -v $(pwd):/data jvivian/gene-outlier-detection \
 
 # Toil-version of Workflow
 
-A [Toil](https://toil.readthedocs.io/) version of the workflow is available [here](https://github.com/jvivian/gene-outlier-detection/blob/master/toil/toil-outlier-detection.py). This allows the model to be run on multiple samples at scale on a cluster or cloud computing cluster, but requires Python 2.7. 
+A [Toil](https://toil.readthedocs.io/) version of the workflow is available [here](https://github.com/jvivian/gene-outlier-detection/blob/master/toil/toil-outlier-detection.py). This allows the model to be run on multiple samples at scale on a cluster or cloud computing cluster, but requires Python 2.7 and `pip install pandas toil==3.19.0`
