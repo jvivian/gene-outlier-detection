@@ -94,7 +94,7 @@ def anova_distances(
     df: pd.DataFrame,
     genes: List[str],
     group: str = "tissue",
-    n_genes=2000,
+    percent_genes=0.10,
 ):
     """
     Calculates distance to each group via pairwise distance using top N ANOVA genes
@@ -104,19 +104,14 @@ def anova_distances(
         df: background dataset
         genes: genes to use for pairwise distance
         group: Column to use as class discriminator
-        n_genes: Number of ANOVA genes to use
+        percent_genes: Percent of ANOVA genes to use for pairwise distance
 
     Returns:
         DataFrame of pairwise distances
     """
     click.echo(f"Ranking background datasets by {group} via ANOVA")
-    if n_genes >= len(genes):
-        click.secho(
-            f"# of ANOVA genes {n_genes} greater than {len(genes)}", fg="yellow"
-        )
-        skb_genes = genes
-    else:
-        skb_genes = select_k_best_genes(df, genes, n=n_genes)
+    n_genes = int(percent_genes * len(genes))
+    skb_genes = select_k_best_genes(df, genes, n=n_genes)
     dist = pairwise_distances(np.array(sample[skb_genes]).reshape(1, -1), df[skb_genes])
     dist = pd.DataFrame([dist.ravel(), df["tissue"]]).T
     dist.columns = ["Distance", "Group"]
