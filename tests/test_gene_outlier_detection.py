@@ -106,9 +106,8 @@ def test_anova_distances(load_data):
 
     sample, df, genes = load_data
     dist = anova_distances(sample, df, genes)
-    print(dist)
     assert list(dist.Group) == ["Thyroid", "Brain"]
-    assert [int(x) for x in dist.MedianDistance] == [57, 131]
+    assert [int(x) for x in dist.MedianDistance] == [63, 142]
 
 
 def test_run_model(model_output):
