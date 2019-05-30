@@ -174,7 +174,7 @@ def test__ppp_one_gene():
 
     z = np.array(range(10))
     z_true = 5
-    assert _ppp_one_gene(z_true, z) == 0.4
+    assert _ppp_one_gene(z_true, z) == 0.455
 
 
 def test_pickle_model(tmpdir, model_output):

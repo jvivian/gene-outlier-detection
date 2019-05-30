@@ -349,7 +349,7 @@ def _ppp_one_gene(z_true, z):
     """Calculates ppp for one gene"""
     # Rule of thumb: for 100,000 samples, report p-values to the thousands place
     # Add pseudocount for instances where outlier is more extreme than every other sample
-    return round(np.sum(z_true < z) + 1 / len(z) + 1, 3)
+    return round((np.sum(z_true < z) + 1) / (len(z) + 1), 3)
 
 
 def pickle_model(output_path: str, model, trace):
