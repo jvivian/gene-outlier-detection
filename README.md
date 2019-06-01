@@ -12,18 +12,21 @@ See [Model Explanation](#model-explanation) for more information.
 
 This workflow takes gene expression data as input and outputs the following:
 
-    SAMPLE-UUID
-    ├── _pearson_correlations.txt
-    ├── _pval_runs.tsv
+    SAMPLE_UUID
+    ├── _info
+    │   ├── _pearson_correlations.txt
+    │   ├── _pval_runs.tsv
+    │   └── _run_info.tsv
     ├── model.pkl
     ├── pvals.tsv
     ├── ranks.tsv
     ├── traceplot.png
     ├── weights.png
     └── weights.tsv
-
-- **_pearson_correlations.txt** - Single column list of pearson correlation of p-values between runs
-- **_pval_runs.tsv** - Table of p-values as background datasets are added
+- The **_info** subdirectory contains secondary information about the model run
+    - **_pearson_correlations.txt** - Single column list of pearson correlation of p-values between runs (unless `-d` is provided)
+    - **_pval_runs.tsv** - Table of p-values as background datasets are added
+    - **_run_info.tsv** - TSV of software parameters for reproducibility and model runtime
 - **model.pkl** — A python pickle of the [PyMC3](https://docs.pymc.io) `model` and `trace`. Can be retrieved via
 ```python
 import pickle
