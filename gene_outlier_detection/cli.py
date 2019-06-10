@@ -53,7 +53,7 @@ def common_cli(function: Callable) -> Callable:
         type=int,
         show_default=True,
         help="Maximum number of background categorical groups to include in the model training. "
-        "Model will run starting with one background dataset and iteratively add more until the p-values converge.",
+        "Model will run, starting with one background dataset, and iteratively adding more until the p-values converge.",
     )(function)
     function = click.option(
         "-g",
@@ -97,7 +97,7 @@ def common_cli(function: Callable) -> Callable:
         "--background",
         required=True,
         type=str,
-        help="Samples by Genes matrix with metadata columns first "
+        help="Path to samples by Genes matrix with metadata columns first "
         "(including a categorical column that discriminates samples by some category) (csv/tsv/hd5)",
     )(function)
     function = click.option(
@@ -105,6 +105,6 @@ def common_cli(function: Callable) -> Callable:
         "--sample",
         required=True,
         type=str,
-        help="Sample(s) by Genes matrix (csv/tsv/hd5)",
+        help="Path to sample(s) by Genes matrix (csv/tsv/hd5)",
     )(function)
     return function
