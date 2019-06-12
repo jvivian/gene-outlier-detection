@@ -135,8 +135,8 @@ def test_run_model(tr_model):
 
 
 def test_t_fits(tr_model):
-    assert "JAK1=Thyroid" in tr_model.fits
-    assert len(tr_model.fits["JAK1=Thyroid"]) == 4
+    assert "JAK1=Thyroid" in tr_model.fits.index
+    assert len(tr_model.fits.loc["JAK1=Thyroid"].index) == 4
 
 
 def test_posterior_predictive_check(tr_model):
