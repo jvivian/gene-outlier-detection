@@ -359,7 +359,7 @@ class Model:
         # 'b' parameter is not in the model if n_bg == 1
         b = True if self.n_bg > 1 else False
         varnames = ["b", "eps"] if b else ["eps"]
-        pm.traceplot(self.trace, varnames=varnames)
+        pm.traceplot(self.trace, var_names=varnames)
         traceplot_out = os.path.join(self.out_dir, "traceplot.png")
         fig = plt.gcf()
         fig.savefig(traceplot_out)
