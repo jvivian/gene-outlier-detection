@@ -54,9 +54,13 @@ def run_outlier_model(job, sample_info, args, cores=3, memory="15G"):
         str(args.num_training_genes),
         "--pval-convergence-cutoff",
         str(args.pval_convergence_cutoff),
+        "--tune",
+        str(args.tune),
     ]
     if args.disable_iter:
         parameters.append("--disable-iter")
+    if args.save_model:
+        parameters.append("--save-model")
     if args.gene_list:
         parameters.extend(["--gene-list", "/data/gene-list.txt"])
     image = "jvivian/gene-outlier-detection:0.12.0a"
@@ -141,9 +145,21 @@ def cli():
         help="P-value Pearson correlation cutoff to stop adding additional background datasets.",
     )
     parser.add_argument(
+        "--tune",
+        default=500,
+        type=int,
+        help="Number of tuning steps in the MCMC sampling process. "
+        "If you get an error asking to increase the number of tune steps, try increasing to 750 or 1,000",
+    )
+    parser.add_argument(
         "--disable-iter",
         action="store_true",
         help="This flag disables iterative runs and runs one model with `--num-backgrounds`",
+    )
+    parser.add_argument(
+        "--save-model",
+        action="store_true",
+        help="This flag will save a serialized PyMC3 model and trace object",
     )
 
     # Add Toil options

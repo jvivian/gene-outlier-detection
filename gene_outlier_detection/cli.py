@@ -12,10 +12,23 @@ def common_cli(function: Callable) -> Callable:
         Input function
     """
     function = click.option(
+        "--save-model",
+        is_flag=True,
+        help="This flag will save a serialized PyMC3 model and trace object",
+    )(function)
+    function = click.option(
         "-d",
         "--disable-iter",
         is_flag=True,
         help="This flag disables iterative runs and runs one model with `--num-backgrounds`",
+    )(function)
+    function = click.option(
+        "-t",
+        "--tune",
+        default=500,
+        type=int,
+        help="Number of tuning steps in the MCMC sampling process. "
+        "If you get an error asking to increase the number of tune steps, try increasing to 750 or 1,000",
     )(function)
     function = click.option(
         "-ntg",

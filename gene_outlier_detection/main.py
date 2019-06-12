@@ -5,9 +5,6 @@ import warnings
 from argparse import Namespace
 
 import click
-import numpy as np
-import pandas as pd
-import scipy.stats as st
 
 from gene_outlier_detection.cli import common_cli
 from gene_outlier_detection.lib import Model
@@ -15,7 +12,7 @@ from gene_outlier_detection.lib import Model
 warnings.filterwarnings("ignore")
 
 
-def iter_run(opts: Namespace):
+def run(opts: Namespace):
     """
     Run model until P-values converge or num-backgrounds is reached
 
@@ -80,8 +77,9 @@ def iter_run(opts: Namespace):
     ppp_out = os.path.join(m.out_dir, "pvals.tsv")
     m.ppp.to_csv(ppp_out, sep="\t")
 
-    # Save Model
-    m.pickle_model()
+    # Save Model if run with `--save-model` flag
+    if m.save_model:
+        m.pickle_model()
 
     # Move _info files to subdir _info
     output = os.listdir(opts.out_dir)
@@ -105,7 +103,9 @@ def cli(
     max_genes,
     n_train,
     pval_cutoff,
+    tune,
     disable_iter,
+    save_model,
 ):
     click.clear()
     click.secho("Gene Expression Outlier Detection", fg="green", bg="black", bold=True)
@@ -116,7 +116,7 @@ def cli(
     opts.theano_dir = os.path.join(opts.out_dir, ".theano")
     os.environ["THEANO_FLAGS"] = f"base_compiledir={opts.theano_dir}"
     os.makedirs(opts.theano_dir, exist_ok=True)
-    iter_run(opts)
+    run(opts)
 
 
 if __name__ == "__main__":

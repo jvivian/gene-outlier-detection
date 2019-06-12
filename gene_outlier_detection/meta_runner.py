@@ -21,7 +21,9 @@ def cli(
     max_genes,
     n_train,
     pval_cutoff,
+    tune,
     disable_iter,
+    save_model,
 ):
     """
     Calls main.py in its own subprocess to avoid absurd Theano crash during compiledir cleanup
@@ -51,9 +53,13 @@ def cli(
         str(n_train),
         "-p",
         str(pval_cutoff),
+        "--tune",
+        str(tune),
     ]
     if disable_iter:
         parameters.append("-d")
+    if save_model:
+        parameters.append("--save-model")
     if gene_list:
         parameters.extend(["-l", gene_list])
     subprocess.check_call(parameters)
