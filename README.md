@@ -27,7 +27,7 @@ This workflow takes gene expression data as input and outputs the following:
     - **_pearson_correlations.txt** - Single column list of pearson correlation of p-values between runs (unless `-d` is provided)
     - **_pval_runs.tsv** - Table of p-values as background datasets are added
     - **_run_info.tsv** - TSV of software parameters for reproducibility and model runtime
-- **model.pkl** — A python pickle of the [PyMC3](https://docs.pymc.io) `model` and `trace`. Can be retrieved via
+- **model.pkl** — A python pickle of the [PyMC3](https://docs.pymc.io) `model` and `trace`. Model must be run with `--save-model` flag and can be retrieved via
 ```python
 import pickle
 with open(pkl_path, 'rb') as buff:
@@ -139,5 +139,9 @@ Explanation of arguments used when running the program.
     - P-value Pearson correlation cutoff to stop adding additional background datasets.
 - `--num-training-genes`
     - If gene-list is empty, will use ANOVA to choose gene set. Not typically useful outside of testing.
+- `--tune`
+    - Number of tuning steps to start MCMC sampling process. Default is 500, but 750 or 1,000 may be useful in circumstances where the model is having difficulty converging.
 - `--disable-iter`
     - This flag disables iterative runs and runs one model with `--num-backgrounds`.
+- `--save-model`
+    - This flag will save a serialized version of the model/trace. Useful for debugging or inspection of all model parameters.

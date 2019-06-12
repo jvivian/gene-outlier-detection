@@ -234,7 +234,7 @@ def test_meta_runner(params, tmpdir, data_dir):
 def test_meta_runner_disable(params, tmpdir, data_dir):
     from gene_outlier_detection.meta_runner import cli
 
-    params.extend(["--out-dir", tmpdir, "-d"])
+    params.extend(["--out-dir", tmpdir, "-d", "--save-model"])
     runner = CliRunner()
     result = runner.invoke(cli, params, catch_exceptions=False)
     assert result.exit_code == 0
