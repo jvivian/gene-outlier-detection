@@ -1,259 +1,266 @@
 import os
-from distutils import dir_util
+from argparse import Namespace
 
-import pandas as pd
 import pytest
 from click.testing import CliRunner
 
 
-@pytest.fixture
-def datadir(tmpdir):
-    datadir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "data"))
-    dir_util.copy_tree(datadir, str(tmpdir))
-    return str(tmpdir)
+@pytest.fixture(scope="session")
+def data_dir():
+    data_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "data"))
+    return data_dir
 
 
-@pytest.fixture
-def load_data(datadir):
-    from gene_outlier_detection.lib import load_df, get_sample
+@pytest.fixture(scope="session")
+def model(data_dir):
+    from gene_outlier_detection.lib import Model
 
-    df_path = os.path.join(datadir, "normal.tsv")
-    sample_path = os.path.join(datadir, "input.tsv")
-    df = load_df(df_path)
-    genes = df.columns[5:]
-    sample = get_sample(sample_path, "TCGA-DJ-A2PX-01")
-    return sample, df, genes
-
-
-@pytest.fixture
-def model_output(load_data):
-    import warnings
-
-    warnings.filterwarnings("ignore")
-    from gene_outlier_detection.lib import run_model, select_k_best_genes
-
-    sample, df, genes = load_data
-    training_genes = select_k_best_genes(df, genes, n=10)
-    return run_model(sample, df, training_genes)
+    opts = Namespace()
+    opts.sample_path = os.path.join(data_dir, "input.tsv")
+    opts.background_path = os.path.join(data_dir, "normal.tsv")
+    opts.name = "TCGA-DJ-A2PX-01"
+    opts.out_dir = data_dir
+    opts.group = "tissue"
+    opts.col_skip = 5
+    opts.n_bg = 2
+    opts.gene_list = os.path.join(data_dir, "test-drug-genes.txt")
+    opts.max_genes = 11
+    opts.n_train = 10
+    opts.pval_cutoff = 0.99
+    opts.disable_iter = False
+    return Model(opts)
 
 
-@pytest.fixture
-def ppc(model_output, load_data):
-    from gene_outlier_detection.lib import (
-        posterior_predictive_check,
-        select_k_best_genes,
-    )
+@pytest.fixture(scope="session")
+def tr_model(model):
+    # First run
+    model.select_training_set(1)
+    model.select_training_genes()
+    model.run_model()
+    model.posterior_predictive_check()
+    model.posterior_predictive_pvals()
+    model.update_pvals()
+    model.update_pearson_correlations()
+    # Second run
+    model.select_training_set(2)
+    model.select_training_genes()
+    model.run_model()
+    model.posterior_predictive_check()
+    model.posterior_predictive_pvals()
+    model.update_pvals()
+    model.update_pearson_correlations()
+    # Now that run is over, calculate weights
+    model.calculate_weights()
+    return model
 
-    sample, df, genes = load_data
-    training_genes = select_k_best_genes(df, genes, n=10)
-    m, t, fits = model_output
-    return posterior_predictive_check(t, fits, training_genes)
 
-
-@pytest.fixture
-def parameters(datadir):
+@pytest.fixture(scope="session")
+def params(data_dir):
     return [
         "--sample",
-        os.path.join(datadir, "input.hdf"),
+        os.path.join(data_dir, "input.tsv"),
         "--background",
-        os.path.join(datadir, "normal.tsv"),
+        os.path.join(data_dir, "normal.tsv"),
         "--name",
         "TCGA-DJ-A2PX-01",
-        "--out-dir",
-        datadir,
-        "--group",
-        "tissue",
         "--col-skip",
         "5",
+        "--num-backgrounds",
+        "2",
+        "--max-genes",
+        "10",
+        "--gene-list",
+        os.path.join(data_dir, "test-drug-genes.txt"),
+        "--num-training-genes",
+        "10",
     ]
 
 
-def test_select_k_best_genes(datadir):
-    from gene_outlier_detection.lib import select_k_best_genes
-    import warnings
-
-    warnings.filterwarnings("ignore")
-    df = pd.read_hdf(os.path.join(datadir, "normal.hdf"))
-    genes = df.columns[5:]
-    assert select_k_best_genes(df, genes, n=5) == [
-        "AP1M2",
-        "RP4-568C11.4",
-        "MXRA5",
-        "TSHR",
-        "GRM3",
-    ]
+def test_load_df(model, data_dir):
+    df_path = os.path.join(data_dir, "normal.csv")
+    df = model.load_df(df_path)
+    assert df.shape == (10, 26549)
 
 
-def test_get_sample(datadir):
-    from gene_outlier_detection.lib import get_sample
-
-    sample_path = os.path.join(datadir, "input.csv")
-    sample = get_sample(sample_path, "TCGA-DJ-A2PX-01")
+def test_get_sample(model):
+    sample = model.get_sample()
     assert sample.shape[0] == 26549
     assert sample.tissue == "Thyroid"
 
 
-def test_load_df(datadir):
-    from gene_outlier_detection.lib import load_df
+def test_select_k_best_genes(model):
+    import warnings
 
-    df_path = os.path.join(datadir, "normal.csv")
-    df = load_df(df_path)
-    assert df.shape == (10, 26549)
+    warnings.filterwarnings("ignore")
+    assert model.select_k_best_genes(model.df, n=5) == [
+        "AP1M2",
+        "RP4-568C11.4",
+        "MXRA5",
+        "TSHR",
+        "GRM3",
+    ]
 
 
-def test_anova_distances(load_data):
-    from gene_outlier_detection.lib import anova_distances
-
-    sample, df, genes = load_data
-    dist = anova_distances(sample, df, genes)
+def test_anova_distances(model):
+    dist = model.anova_distances(percent_genes=0.10)
     assert list(dist.Group) == ["Thyroid", "Brain"]
     assert [int(x) for x in dist.MedianDistance] == [63, 142]
 
 
-def test_run_model(model_output):
-    m, t, fits = model_output
-    assert "b" in t.varnames
+def test_save_ranks(tmpdir, model):
+    model.out_dir = tmpdir
+    model.save_ranks()
+    assert os.path.exists(os.path.join(tmpdir, "ranks.tsv"))
 
 
-def test_calculate_weights(model_output):
-    from gene_outlier_detection.lib import calculate_weights
-
-    m, t, fits = model_output
-    weights = calculate_weights(["Thyroid", "Brain"], t)
-    assert list(weights.Class.unique()) == ["Thyroid", "Brain"]
+def test_parse_gene_list(model):
+    assert len(model.initial_genes) == 10
+    model.gene_list = None
+    assert len(model.parse_gene_list()) == 10
 
 
-def test_plot_weights(tmpdir, model_output):
-    from gene_outlier_detection.lib import plot_weights
-
-    output = os.path.join(tmpdir, "plot.png")
-    m, t, fits = model_output
-    plot_weights(["Thyroid", "Brain"], t, output)
-    assert os.path.exists(output)
+def test_select_training_set(model):
+    model.select_training_set(2)
+    assert len(model.backgrounds) == 2
 
 
-def test_posterior_predictive_check(ppc):
+def test_select_training_genes(model):
+    model.select_training_set(2)
+    model.select_training_genes()
+    assert len(model.training_genes) == model.max_genes
+
+
+def test_run_model(tr_model):
+    assert "b" in tr_model.trace.varnames
+
+
+def test_t_fits(tr_model):
+    assert "JAK1=Thyroid" in tr_model.fits
+    assert len(tr_model.fits["JAK1=Thyroid"]) == 4
+
+
+def test_posterior_predictive_check(tr_model):
+    ppc = tr_model.ppc
     assert len(ppc.keys()) == 10
     assert len(ppc[list(ppc.keys())[0]]) == 1000
 
 
-def test__gene_ppc(model_output):
-    from gene_outlier_detection.lib import _gene_ppc
-
-    m, t, fits = model_output
-    assert len(_gene_ppc(t, fits, "PAX8")) == 1000
+def test__gene_ppc(tr_model):
+    assert len(tr_model._gene_ppc("JAK1")) == 1000
 
 
-def test_posterior_predictive_pvals(load_data, ppc):
-    from gene_outlier_detection.lib import posterior_predictive_pvals
-
-    sample, df, genes = load_data
-    ppp = posterior_predictive_pvals(sample, ppc)
+def test_posterior_predictive_pvals(data_dir, tr_model):
+    ppp = tr_model.ppp
     assert ppp.shape == (10, 1)
-
-    genes_in_model = {
-        "DSG2",
-        "AP1M2",
-        "CDH1",
-        "TSHR",
-        "CTD-2182N23.1",
-        "RP4-568C11.4",
-        "MXRA5",
-        "GRM3",
-        "PAX8",
-        "CCL21",
-    }
-    inter = set(ppp.index).intersection(genes_in_model)
+    inter = set(ppp.index).intersection(set(tr_model.training_genes))
     assert len(inter) == 10
 
 
-def test__ppp_one_gene():
-    from gene_outlier_detection.lib import _ppp_one_gene
-    import numpy as np
-
-    z = np.array(range(10))
-    z_true = 5
-    assert _ppp_one_gene(z_true, z) == 0.455
+def test_update_pvals(tmpdir, tr_model):
+    # Assertions
+    tr_model.update_pvals()
+    assert len(tr_model.pval_runs.columns) == 3
 
 
-def test_pickle_model(tmpdir, model_output):
-    from gene_outlier_detection.lib import pickle_model
+def test_save_pval_runs(tmpdir, tr_model):
+    tr_model.out_dir = tmpdir
+    tr_model.save_pval_runs()
+    assert os.path.exists(os.path.join(tmpdir, "_pval_runs.tsv"))
 
-    m, t, fits = model_output
+
+def test_update_pearson_correlations(tmpdir, tr_model):
+    tr_model.update_pearson_correlations()
+    assert len(tr_model.pearson_correlations) == 2
+
+
+def test_save_pearson_correlations(tmpdir, tr_model):
+    tr_model.out_dir = tmpdir
+    tr_model.save_pearson_correlations()
+    path = os.path.join(tmpdir, "_pearson_correlations.txt")
+    assert os.path.exists(path)
+    tr_model.pearson_correlations = []
+    assert tr_model.save_pearson_correlations() is None
+
+
+def test_calculate_weights(tr_model):
+    assert sorted(tr_model.weights.Class.unique()) == ["Brain", "Thyroid"]
+
+
+def test_plot_weights(tmpdir, tr_model):
+    tr_model.out_dir = tmpdir
+    tr_model.plot_weights()
+    output = os.path.join(tmpdir, "weights.png")
+    assert os.path.exists(output)
+
+
+def test_save_weights(tmpdir, tr_model):
+    tr_model.out_dir = tmpdir
+    tr_model.weights = None
+    tr_model.save_weights()
+    os.path.exists(os.path.join(tmpdir, "weights.tsv"))
+
+
+def test_save_traceplot(tmpdir, tr_model):
+    tr_model.out_dir = tmpdir
+    tr_model.save_traceplot()
+    assert os.path.exists(os.path.join(tmpdir, "traceplot.png"))
+
+
+def test_pickle_model(tmpdir, tr_model):
+    tr_model.out_dir = tmpdir
+    tr_model.pickle_model()
     out = os.path.join(tmpdir, "model.pkl")
-    pickle_model(out, m, t)
     assert os.path.exists(out)
 
 
-def test_meta_runner(datadir, parameters):
+def test_output_run_info(tmpdir, tr_model):
+    tr_model.out_dir = tmpdir
+    tr_model.output_run_info(50, "minutes")
+    path = os.path.join(tmpdir, "_run_info.tsv")
+    assert os.path.exists(path)
+
+
+def test_meta_runner(params, tmpdir, data_dir):
     from gene_outlier_detection.meta_runner import cli
 
-    parameters.extend(["--num-training-genes", "10", "-m", "10", "-d", "-nbg", "1"])
+    params.extend(["--out-dir", tmpdir])
+
     runner = CliRunner()
-    result = runner.invoke(cli, parameters, catch_exceptions=False)
+    result = runner.invoke(cli, params, catch_exceptions=False)
     assert result.exit_code == 0
-    assert os.path.exists(os.path.join(datadir, "TCGA-DJ-A2PX-01"))
+    assert os.path.exists(os.path.join(tmpdir, "TCGA-DJ-A2PX-01"))
 
 
-def test_gene_list(datadir, parameters):
+def test_meta_runner_disable(params, tmpdir, data_dir):
     from gene_outlier_detection.meta_runner import cli
 
-    parameters.extend(
-        ["-l", os.path.join(datadir, "test-drug-genes.txt"), "-m", "11", "-nbg", "2"]
-    )
+    params.extend(["--out-dir", tmpdir, "-d"])
     runner = CliRunner()
-    result = runner.invoke(cli, parameters, catch_exceptions=False)
+    result = runner.invoke(cli, params, catch_exceptions=False)
     assert result.exit_code == 0
-    assert os.path.exists(os.path.join(datadir, "TCGA-DJ-A2PX-01"))
+    assert os.path.exists(os.path.join(tmpdir, "TCGA-DJ-A2PX-01"))
 
 
-def test_display_runtime():
-    from gene_outlier_detection.lib import display_runtime
+def test_display_runtime(model):
     import time
 
     t0 = time.time() - 300
-    runtime, unit = display_runtime(t0)
+    runtime, unit = model.display_runtime(t0)
     assert unit == "min"
     assert int(runtime) == 5
     t0 = time.time() - 3600
-    runtime, unit = display_runtime(t0)
+    runtime, unit = model.display_runtime(t0)
     assert unit == "hr"
     assert int(runtime) == 1
 
 
-def test_save_traceplot(tmpdir, model_output):
-    from gene_outlier_detection.lib import save_traceplot
-
-    _, t, fits = model_output
-    save_traceplot(t, tmpdir)
-    assert os.path.exists(os.path.join(tmpdir, "traceplot.png"))
-
-
-def test_save_weights(tmpdir, load_data, model_output):
-    from gene_outlier_detection.lib import save_weights
-
-    sample, df, genes = load_data
-    m, t, fits = model_output
-    classes = df.tissue.unique()
-    save_weights(t, classes, tmpdir)
-    assert os.path.exists(os.path.join(tmpdir, "weights.png"))
-    assert os.path.exists(os.path.join(tmpdir, "weights.tsv"))
-
-
-def test_missing_sample(datadir):
-    from gene_outlier_detection.lib import get_sample
-
-    sample_path = os.path.join(datadir, "input.tsv")
+def test_missing_sample(data_dir, model):
+    model.name = "FOO"
     with pytest.raises(RuntimeError):
-        get_sample(sample_path, "foo")
+        model.get_sample()
 
 
-def test_bad_extension(datadir):
-    from gene_outlier_detection.lib import get_sample, load_df
-
-    sample_path = os.path.join(datadir, "input.foo")
-
+def test_bad_extension(data_dir, model):
+    sample_path = os.path.join(data_dir, "input.foo")
     with pytest.raises(RuntimeError):
-        get_sample(sample_path, "foo")
-    with pytest.raises(RuntimeError):
-        load_df(sample_path)
+        model.load_df(sample_path)

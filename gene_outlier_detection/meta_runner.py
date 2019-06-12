@@ -10,8 +10,8 @@ from gene_outlier_detection.cli import common_cli
 @click.command()
 @common_cli
 def cli(
-    sample,
-    background,
+    sample_path,
+    background_path,
     name,
     out_dir,
     group,
@@ -32,9 +32,9 @@ def cli(
         "python",
         main_path,
         "-s",
-        sample,
+        sample_path,
         "-b",
-        background,
+        background_path,
         "-n",
         name,
         "-o",
