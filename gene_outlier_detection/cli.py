@@ -95,6 +95,7 @@ def common_cli(function: Callable) -> Callable:
     function = click.option(
         "-b",
         "--background",
+        "background_path",
         required=True,
         type=str,
         help="Path to samples by Genes matrix with metadata columns first "
@@ -103,6 +104,7 @@ def common_cli(function: Callable) -> Callable:
     function = click.option(
         "-s",
         "--sample",
+        "sample_path",
         required=True,
         type=str,
         help="Path to sample(s) by Genes matrix (csv/tsv/hd5)",
