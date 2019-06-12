@@ -160,8 +160,7 @@ class Model:
             training_genes = self.initial_genes
         self.training_genes = training_genes
 
-    # TODO: Change this to return a DF and use itertuples downstream
-    def t_fits(self):
+    def t_fits(self) -> pd.DataFrame:
         """
         StudentT distribution fits for every dataset/gene pair
 
@@ -207,7 +206,8 @@ class Model:
                 lam = alpha_n * kappa_n / (beta_n * (kappa_n + 1.0))
 
                 fits[f"{gene}={dataset}"] = (mu, nu, lam, np.sqrt(1 / lam))
-        return fits
+        columns = ["mu", "nu", "lam", "sd"]
+        return pd.DataFrame.from_dict(fits, orient="index", columns=columns)
 
     def run_model(self, **kwargs):
         """Run Bayesian model using prefit Y's for each Gene and Dataset distribution"""
@@ -233,10 +233,10 @@ class Model:
                 y, norm_term = 0, 0
                 for i, dataset in enumerate(self.backgrounds):
                     name = f"{gene}={dataset}"
-                    m, nu, lam, sd = self.fits[name]
-                    x = pm.StudentT(name, nu=nu, mu=m, lam=lam)
-                    y += (b[i] / sd) * x
-                    norm_term += b[i] / sd
+                    fit = self.fits.loc[name]
+                    x = pm.StudentT(name, nu=fit.nu, mu=fit.mu, lam=fit.lam)
+                    y += (b[i] / fit.sd) * x
+                    norm_term += b[i] / fit.sd
 
                 # y_g = \frac{\sum_d \frac{\beta * x}{\sigma} + \epsilon}{\sum_d\frac{\beta}{\sigma}}
                 # Embed mu in laplacian distribution
@@ -261,10 +261,10 @@ class Model:
         y, norm_term = 0, 0
         multiple_backgrounds = "b" in self.trace.varnames
         for i, y_name in enumerate(y_gene):
-            nu, mu, lam, sd = self.fits[y_name]
+            fit = self.fits.loc[y_name]
             b = self.trace["b"][:, i] if multiple_backgrounds else 1
-            y += (b / sd) * self.trace[y_name]
-            norm_term += b / sd
+            y += (b / fit.sd) * self.trace[y_name]
+            norm_term += b / fit.sd
 
         sampling = np.random.laplace(
             loc=(y / norm_term), scale=(self.trace["eps"] / norm_term)
