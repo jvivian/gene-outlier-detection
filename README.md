@@ -57,7 +57,7 @@ outlier-detection --sample /data/tumor.hd5 \
 
 # Dependencies and Installation
 
-This workflow has been tested on ubuntu 18.04 and Mac OSX, but should also run on other unix based systems.
+This workflow has been tested on ubuntu 18.04 and Mac OSX, but should also run on other unix based systems or under an Anaconda installation.
 
 1. Python 3.6
 2. [Docker](https://docs.docker.com/install/) if using the Docker version or Toil workflow version
