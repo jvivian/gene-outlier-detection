@@ -213,11 +213,26 @@ def test_pickle_model(tmpdir, tr_model):
     assert os.path.exists(out)
 
 
+def test_save_pvalues(tmpdir, tr_model):
+    tr_model.out_dir = tmpdir
+    tr_model.save_pvalues()
+    out = os.path.join(tmpdir, "pvals.tsv")
+    assert os.path.exists(out)
+    assert list(tr_model.ppp.columns) == ["Up-pvalue", "Down-pvalue"]
+
+
 def test_output_run_info(tmpdir, tr_model):
     tr_model.out_dir = tmpdir
     tr_model.output_run_info(50, "minutes")
     path = os.path.join(tmpdir, "_run_info.tsv")
     assert os.path.exists(path)
+
+
+def test_save_gelman_rubin(tmpdir, tr_model):
+    tr_model.out_dir = tmpdir
+    out = os.path.join(tmpdir, "_gelman-rubin.tsv")
+    tr_model.save_gelman_rubin()
+    assert os.path.exists(out)
 
 
 def test_meta_runner(params, tmpdir, data_dir):

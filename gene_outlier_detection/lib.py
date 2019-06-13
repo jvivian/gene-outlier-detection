@@ -120,7 +120,7 @@ class Model:
         ranks_out = os.path.join(self.out_dir, "ranks.tsv")
         self.ranks.to_csv(ranks_out, sep="\t")
 
-    def parse_gene_list(self):
+    def parse_gene_list(self) -> List[str]:
         """
         Parse gene list if provided, otherwise select some genes via ANOVA
 
@@ -161,15 +161,7 @@ class Model:
         self.training_genes = training_genes
 
     def t_fits(self) -> pd.DataFrame:
-        """
-        StudentT distribution fits for every dataset/gene pair
-
-        Args:
-            backgrounds: Background datasets to fit
-
-        Returns:
-            StudentT fits for every gene-dataset pair
-        """
+        """StudentT distribution fits for every dataset/gene pair"""
         fits = {}
         for gene in self.training_genes:
             for i, dataset in enumerate(self.backgrounds):
@@ -352,7 +344,7 @@ class Model:
         weights.index.name = None
         weights.to_csv(os.path.join(self.out_dir, "weights.tsv"), sep="\t")
 
-    def save_traceplot(self) -> None:
+    def save_traceplot(self):
         """Saves traceplot of PyMC3 run"""
         import pymc3 as pm
 
@@ -364,7 +356,15 @@ class Model:
         fig = plt.gcf()
         fig.savefig(traceplot_out)
 
+    def save_pvalues(self):
+        """Save p-values for the final run"""
+        ppp_out = os.path.join(self.out_dir, "pvals.tsv")
+        self.ppp.columns = ["Up-pvalue"]
+        self.ppp["Down-pvalue"] = 1 - self.ppp["Up-pvalue"]
+        self.ppp.to_csv(ppp_out, sep="\t")
+
     def output_run_info(self, runtime, unit):
+        """Save output run information"""
         run_path = os.path.join(self.out_dir, "_run_info.tsv")
         with open(run_path, "w") as f:
             for k in vars(self.opts):
@@ -376,6 +376,34 @@ class Model:
             f.write(f"epsilon_median\t{err_med}\n")
             f.write(f"epsilon_std\t{err_std}\n")
 
+    def save_gelman_rubin(self):
+        """Saves Gelman-Rubin statistics for the final run"""
+        import pymc3 as pm
+
+        out = os.path.join(self.out_dir, "_gelman-rubin.tsv")
+        stats = []
+        with open(out, "w") as f:
+            for k, v in pm.diagnostics.gelman_rubin(self.trace).items():
+                if hasattr(v, "__iter__"):
+                    stats.extend(v)
+                    v_out = "\t".join([str(x) for x in v])
+                else:
+                    stats.append(v)
+                    v_out = v
+                f.write(f"{k}\t{v_out}\n")
+            median = round(np.median(stats), 5)
+            f.write(f"Median\t{median}\n")
+            if 0.8 < median < 1.2:
+                click.secho(
+                    f"Model converged with Gelman-Rubin of {median}", fg="green"
+                )
+            else:
+                click.secho(
+                    f"Model encountered difficulties converging with Gelman-Rubin of {median}. "
+                    f"Should be close to 1.0",
+                    fg="yellow",
+                )
+
     def pickle_model(self):
         """Pickles PyMC3 model and trace"""
         model_out = os.path.join(self.out_dir, "model.pkl")
@@ -383,13 +411,16 @@ class Model:
             pickle.dump({"model": self.model, "trace": self.trace}, buff)
 
     @staticmethod
-    def display_runtime(t0: float, total=False) -> Tuple[float, str]:
+    def display_runtime(t0: float, total: bool = False) -> Tuple[float, str]:
         """
         Displays runtime given an initial timepoint
 
-        :param t0: The initial time point generated via time.time()
-        :param total: If this constitutes the total runtime over all models
-        :return: runtime and unit of the runtime (min / hr)
+        Args:
+            t0: The initial time point generated via time.time()
+            total: If this constitutes the total runtime over all models
+
+        Returns:
+            runtime and unit of the runtime (min / hr)
         """
         runtime = round((time.time() - t0) / 60, 2)
         unit = "min" if runtime < 60 else "hr"

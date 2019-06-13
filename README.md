@@ -14,6 +14,7 @@ This workflow takes gene expression data as input and outputs the following:
 
     SAMPLE_UUID
     ├── _info
+    │   ├── _gelman-rubin.tsv
     │   ├── _pearson_correlations.txt
     │   ├── _pval_runs.tsv
     │   └── _run_info.tsv
@@ -24,8 +25,9 @@ This workflow takes gene expression data as input and outputs the following:
     ├── weights.png
     └── weights.tsv
 - The **_info** subdirectory contains secondary information about the model run
-    - **_pearson_correlations.txt** - Single column list of pearson correlation of p-values between runs (unless `-d` is provided)
-    - **_pval_runs.tsv** - Table of p-values as background datasets are added
+    - **_gelman-rubin.tsv** - TSV of [Gelman-Rubin diagnostic](https://docs.pymc.io/api/diagnostics.html#pymc3.diagnostics.gelman_rubin) for every model parameter, including a median across parameters which should be about ~1.0.
+    - **_pearson_correlations.txt** - Single column list of the Pearson correlation of gene p-values between runs (unless `-d` is provided)
+    - **_pval_runs.tsv** - Table of gene p-values as background datasets are added
     - **_run_info.tsv** - TSV of software parameters for reproducibility and model runtime
 - **model.pkl** — A python pickle of the [PyMC3](https://docs.pymc.io) `model` and `trace`. Model must be run with `--save-model` flag and can be retrieved via
 ```python
