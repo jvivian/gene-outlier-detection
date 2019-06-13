@@ -67,17 +67,13 @@ def run(opts: Namespace):
             msg = f"P-value Pearson correlation currently: {round(pr, 3)} between run {i - 1} and {i}"
             click.secho(msg, fg="yellow")
 
-    # Model output
+    # Save Model output
     m.output_run_info(*m.display_runtime(t0, total=True))
     m.save_traceplot()
+    m.save_pvalues()
+    m.save_gelman_rubin()
     if m.n_bg > 1:
         m.save_weights()
-
-    # Output posterior predictive p-values
-    ppp_out = os.path.join(m.out_dir, "pvals.tsv")
-    m.ppp.to_csv(ppp_out, sep="\t")
-
-    # Save Model if run with `--save-model` flag
     if m.save_model:
         m.pickle_model()
 
