@@ -128,7 +128,7 @@ Explanation of arguments used when running the program.
 - `--sample`
     - A path to the matrix (.tsv / .hd5) that contains the sample.
 - `--background`
-    - A path to the matrix that contains the background datasets and at least one column at the beginning used as the label vector for differnet groups in the background.
+    - A path to the matrix that contains the background datasets and at least one column at the beginning used as the label vector for different groups in the background.
 - `--name`
     - Name of row in the sample matrix that corresponds to the desired sample to run.
 - `--out-dir`
