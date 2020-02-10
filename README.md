@@ -64,10 +64,13 @@ This workflow has been tested on ubuntu 18.04 and Mac OSX, but should also run o
 1. Python 3.6
 2. [Docker](https://docs.docker.com/install/) if using the Docker version or Toil workflow version
 3. HDF5 library (if inputs are in HDF5 format)
-4. C++ / GCC compiler for PyMC3's Theano 
-    1. `apt-get update && apt-get install -y libhdf5-serial-dev build-essential gcc`
+    1. `conda install -c anaconda hdf5`
+4. C++ / GCC compiler for PyMC3's Theano
+    1. You have a couple options
+        1. `conda install theano`
+        1. `apt-get update && apt-get install -y libhdf5-serial-dev build-essential gcc`
     
-You may need to modify your `~/.theanorc` to support larger bracket depth for this model.
+You _may_ need to modify your `~/.theanorc` to support larger bracket depth for this model.
 ```
 [gcc]
 cxxflags = -fbracket-depth=1024
