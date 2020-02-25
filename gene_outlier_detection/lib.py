@@ -113,7 +113,10 @@ class Model:
             dist.groupby("Group").apply(lambda x: x["Distance"].median()).reset_index()
         )
         med_dist.columns = ["Group", "MedianDistance"]
-        return med_dist.sort_values("MedianDistance").reset_index(drop=True)
+        med_dist = med_dist.sort_values("MedianDistance").reset_index(drop=True)
+        for i in range(min(5, len(med_dist))):
+            click.echo(f"\t{i + 1}.\t{med_dist.iloc[i].Group}")
+        return med_dist
 
     def save_ranks(self):
         """Convenience method to save rank information"""
@@ -140,6 +143,8 @@ class Model:
     def select_training_set(self, num_backgrounds):
         """Select training subset from entire background dataset"""
         top_groups = self.ranks.head(num_backgrounds)["Group"]
+        group_msg = "\t".join(top_groups)
+        click.secho(f"Running with groups: {group_msg}")
         train_set = self.df[self.df[self.group].isin(top_groups)]
         self.training_set = train_set.sort_values(self.group)
         self.backgrounds = sorted(self.training_set[self.group].unique())

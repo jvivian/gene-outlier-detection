@@ -14,7 +14,7 @@ warnings.filterwarnings("ignore")
 
 def run(opts: Namespace):
     """
-    Run model until P-values converge or num-backgrounds is reached
+    Run model until p-values converge or num-backgrounds is reached
 
     :param opts: Namespace object containing CLI variables
     :return: None
@@ -104,7 +104,7 @@ def cli(
     save_model,
 ):
     click.clear()
-    click.secho("Gene Expression Outlier Detection", fg="green", bg="black", bold=True)
+    click.secho("Gene Expression Outlier Detection", fg="green", bold=True)
 
     # Create output directories and begin run
     opts = Namespace(**locals())
