@@ -1,3 +1,7 @@
+"""
+Calls main.py in its own subprocess to avoid absurd Theano crash during compiledir cleanup
+"""
+
 import os
 import shutil
 import subprocess
@@ -26,7 +30,26 @@ def cli(
     save_model,
 ):
     """
-    Calls main.py in its own subprocess to avoid absurd Theano crash during compiledir cleanup
+    \b
+    N-of-1 Gene Outlier Detection
+    Details: https://github.com/jvivian/gene-outlier-detection
+
+    \b
+    This workflow takes gene expression data as input and outputs the following:
+
+    \b
+    SAMPLE_UUID
+    ├── _info
+    │   ├── _gelman-rubin.tsv
+    │   ├── _pearson_correlations.txt
+    │   ├── _pval_runs.tsv
+    │   └── _run_info.tsv
+    ├── model.pkl
+    ├── pvals.tsv
+    ├── ranks.tsv
+    ├── traceplot.png
+    ├── weights.png
+    └── weights.tsv
     """
     cdir = os.path.dirname(os.path.abspath(__file__))
     main_path = os.path.join(cdir, "main.py")
