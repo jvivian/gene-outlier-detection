@@ -18,6 +18,7 @@ pymc3 = "3.7"
 tables = "^3.5"
 theano = "^1.0.4"
 arviz = "^0.4.0"
+black = "^19.10b0"
 
 [tool.poetry.dev-dependencies]
 pytest = "^3.0"

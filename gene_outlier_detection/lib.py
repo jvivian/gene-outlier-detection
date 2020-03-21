@@ -1,7 +1,8 @@
 import os
 import pickle
 import time
-from typing import List, Tuple
+from typing import List
+from typing import Tuple
 
 import click
 import matplotlib.pyplot as plt
@@ -23,7 +24,7 @@ class Model:
         self.df = self.load_df(self.background_path)
         self.sample = self.get_sample()
         self.df = self.df.sort_values(self.group)
-        self.genes = self.df.columns[self.col_skip :]
+        self.genes = self.get_genes()
         # Calculate/save ranks and establish initial conditions for run
         self.ranks = self.anova_distances()
         self.n_bg = min(opts.n_bg, len(self.ranks))
@@ -73,6 +74,18 @@ class Model:
         else:
             msg = f"Sample {self.name} not located in index of DataFrame {self.background_path}"
             raise RuntimeError(msg)
+
+    def get_genes(self) -> List[str]:
+        """Gets gene list from background and checks against input"""
+        bg_genes = self.df.columns[self.col_skip :]
+        sample_genes = self.sample.index
+        genes = [x for x in bg_genes if x in sample_genes]
+        if len(genes) != len(bg_genes):
+            msg = "WARNING: Genes do not match between input and background DataFrame"
+            click.secho(msg, fg="yellow")
+            diff = set(bg_genes).symmetric_difference(sample_genes)
+            click.secho(f"WARNING: {len(diff)} genes do not match", fg="yellow")
+        return genes
 
     def select_k_best_genes(self, df, n=50) -> List[str]:
         """
@@ -134,11 +147,16 @@ class Model:
             msg = f"No gene list provided. Selecting {self.n_train} genes via SelectKBest (ANOVA F-value)"
             click.secho(msg, fg="yellow")
             # Select genes based on maximum number of background datasets
-            initial_genes = self.select_k_best_genes(self.df, n=self.n_train)
+            genes = self.select_k_best_genes(self.df, n=self.n_train)
         else:
             with open(self.gene_list, "r") as f:
                 initial_genes = [x.strip() for x in f.readlines() if not x.isspace()]
-        return initial_genes
+                genes = [x for x in initial_genes if x in self.genes]
+                if len(initial_genes) != len(genes):
+                    diff = set(initial_genes).difference(genes)
+                    msg = f"WARNING: Gene list contains genes not in the input: {diff}"
+                    click.secho(msg, fg="yellow")
+        return genes
 
     def select_training_set(self, num_backgrounds):
         """Select training subset from entire background dataset"""
