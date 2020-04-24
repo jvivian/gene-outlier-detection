@@ -4,7 +4,7 @@
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/ambv/black) [![Build Status](https://travis-ci.com/jvivian/gene-outlier-detection.svg?branch=master)](https://travis-ci.com/jvivian/gene-outlier-detection) [![Coverage Status](https://coveralls.io/repos/github/jvivian/gene-outlier-detection/badge.svg)](https://coveralls.io/github/jvivian/gene-outlier-detection)
 
 This package identifies outliers for gene expression data by building a consensus distribution from background datasets that are informed by an N-of-1 sample. 
-See [Model Explanation](#model-explanation) for more information or the [preprint](https://www.biorxiv.org/content/early/2019/06/06/662338.full.pdf).
+See [Model Explanation](#model-explanation) for more information, our paper in [JCO](https://ascopubs.org/doi/10.1200/CCI.19.00095), or our [preprint](https://www.biorxiv.org/content/early/2019/06/06/662338.full.pdf). 
 
 <p align="center"> 
 <img src="/imgs/Experimental-Protocol.png" height="50%" width="50%">
@@ -148,7 +148,7 @@ Explanation of arguments used when running the program.
     - Maximum number of genes to run. I.e. if a gene list is provided, how many additional genes using ANOVA. Useful for improving beta coefficients if gene list does not contain enough tissue-specific genes. It is recommended to run the model with `max-genes` set to a minimum of 10-20 more genes than exist in the `--gene-list`.
 - `--pval-convergence-cutoff`
     - P-value Pearson correlation cutoff to stop adding additional background datasets.
-- `--num-training-genes`
+- `--num-training-genes`gi
     - If gene-list is empty, will use ANOVA to choose gene set. Not typically useful outside of testing.
 - `--tune`
     - Number of tuning steps to start MCMC sampling process. Default is 500, but 750 or 1,000 may be useful in circumstances where the model is having difficulty converging.
@@ -156,3 +156,11 @@ Explanation of arguments used when running the program.
     - This flag disables iterative runs and runs one model with `--num-backgrounds`.
 - `--save-model`
     - This flag will save a serialized version of the model/trace. Useful for debugging or inspection of all model parameters.
+    
+# Citation
+If you leverage this method in your research, please cite our [JCO](https://ascopubs.org/doi/10.1200/CCI.19.00095) paper.
+```
+Vivian, John, et al. "Bayesian Framework for Detecting 
+Gene Expression Outliers in Individual Samples." 
+JCO Clinical Cancer Informatics 4 (2020): 160-170.
+```
