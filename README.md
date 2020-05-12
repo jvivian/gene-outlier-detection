@@ -72,7 +72,7 @@ This workflow has been tested on ubuntu 18.04 and Mac OSX, but should also run o
         1. `conda install theano`
         1. `apt-get update && apt-get install -y libhdf5-serial-dev build-essential gcc`
     
-You _may_ need to modify your `~/.theanorc` to support larger bracket depth for this model.
+You _may_ need to modify your `~/.theanorc` to support larger bracket depth for this model. This is likely not necessary anymore with the new model improvements.
 ```
 [gcc]
 cxxflags = -fbracket-depth=1024
@@ -162,7 +162,7 @@ Explanation of arguments used when running the program.
 - `--num-backgrounds`  
     - Maximum number of background categorical groups to include in the model training. Model will run, starting with one background dataset, and iteratively adding more until the p-values converge or `num-backgrounds` is met.
 - `--max-genes`
-    - Maximum number of genes to run. I.e. if a gene list is provided, how many additional genes using ANOVA. Useful for improving beta coefficients if gene list does not contain enough tissue-specific genes. It is recommended to run the model with `max-genes` set to a minimum of 10-20 more genes than exist in the `--gene-list`.
+    - Maximum number of genes to run. If a gene list is provided, 30% additional genes are added for model calibration via SelectKBest, capped by this parameter. Defaults to 200 genes as expected gene lists are between ~30-100. 
 - `--pval-convergence-cutoff`
     - P-value Pearson correlation cutoff to stop adding additional background datasets.
 - `--num-training-genes`gi
