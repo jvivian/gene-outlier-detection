@@ -6,7 +6,7 @@
 This package identifies outliers for gene expression data by building a consensus distribution from background datasets that are informed by an N-of-1 sample. 
 See [Model Explanation](#model-explanation) for more information, our paper in [JCO](https://ascopubs.org/doi/10.1200/CCI.19.00095), or our [preprint](https://www.biorxiv.org/content/early/2019/06/06/662338.full.pdf). 
 
-The model has undergone significant speed improvements and is no longer identical the model in the paper, but produces results that are essentially identical. Another benefit is the prior hyperparameters for each gene/dataset combination are now directly shared in the model whereas before they were approximated due to runtime.
+The model has undergone significant speed improvements and is no longer identical to the model in the paper, but produces results that are essentially identical. Another benefit is the prior hyperparameters for each gene/dataset combination are now directly shared in the model whereas before they were approximated due to runtime concerns.
 
 <p align="center"> 
 <img src="/imgs/Experimental-Protocol.png" height="50%" width="50%">
