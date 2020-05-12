@@ -36,16 +36,18 @@ def tr_model(model):
     # First run
     model.select_training_set(1)
     model.select_training_genes()
+    model.create_index_dataframe()
+    model.create_category_indexers()
     model.run_model()
-    model.posterior_predictive_check()
     model.posterior_predictive_pvals()
     model.update_pvals()
     model.update_pearson_correlations()
     # Second run
     model.select_training_set(2)
     model.select_training_genes()
+    model.create_index_dataframe()
+    model.create_category_indexers()
     model.run_model()
-    model.posterior_predictive_check()
     model.posterior_predictive_pvals()
     model.update_pvals()
     model.update_pearson_correlations()
@@ -131,32 +133,17 @@ def test_select_training_genes(model):
 
 
 def test_run_model(tr_model):
-    assert "b" in tr_model.trace.varnames
+    assert "beta" in tr_model.trace.varnames
 
 
-def test_t_fits(tr_model):
-    assert "JAK1=Thyroid" in tr_model.fits.index
-    assert len(tr_model.fits.loc["JAK1=Thyroid"].index) == 4
-
-
-def test_posterior_predictive_check(tr_model):
-    ppc = tr_model.ppc
-    assert len(ppc.keys()) == 10
-    assert len(ppc[list(ppc.keys())[0]]) == 1000
-
-
-def test__gene_ppc(tr_model):
-    assert len(tr_model._gene_ppc("JAK1")) == 1000
-
-
-def test_posterior_predictive_pvals(data_dir, tr_model):
+def test_posterior_predictive_pvals(tr_model):
     ppp = tr_model.ppp
     assert ppp.shape == (10, 1)
     inter = set(ppp.index).intersection(set(tr_model.training_genes))
     assert len(inter) == 10
 
 
-def test_update_pvals(tmpdir, tr_model):
+def test_update_pvals(tr_model):
     # Assertions
     tr_model.update_pvals()
     assert len(tr_model.pval_runs.columns) == 3
@@ -168,7 +155,7 @@ def test_save_pval_runs(tmpdir, tr_model):
     assert os.path.exists(os.path.join(tmpdir, "_pval_runs.tsv"))
 
 
-def test_update_pearson_correlations(tmpdir, tr_model):
+def test_update_pearson_correlations(tr_model):
     tr_model.update_pearson_correlations()
     assert len(tr_model.pearson_correlations) == 2
 
@@ -235,7 +222,7 @@ def test_save_gelman_rubin(tmpdir, tr_model):
     assert os.path.exists(out)
 
 
-def test_meta_runner(params, tmpdir, data_dir):
+def test_meta_runner(params, tmpdir):
     from gene_outlier_detection.meta_runner import cli
 
     params.extend(["--out-dir", tmpdir])
@@ -246,7 +233,7 @@ def test_meta_runner(params, tmpdir, data_dir):
     assert os.path.exists(os.path.join(tmpdir, "TCGA-DJ-A2PX-01"))
 
 
-def test_meta_runner_disable(params, tmpdir, data_dir):
+def test_meta_runner_disable(params, tmpdir):
     from gene_outlier_detection.meta_runner import cli
 
     params.extend(["--out-dir", tmpdir, "-d", "--save-model"])
@@ -269,7 +256,7 @@ def test_display_runtime(model):
     assert int(runtime) == 1
 
 
-def test_missing_sample(data_dir, model):
+def test_missing_sample(model):
     model.name = "FOO"
     with pytest.raises(RuntimeError):
         model.get_sample()
@@ -279,3 +266,20 @@ def test_bad_extension(data_dir, model):
     sample_path = os.path.join(data_dir, "input.foo")
     with pytest.raises(RuntimeError):
         model.load_df(sample_path)
+
+
+def test_create_index_dataframe(model):
+    model.select_training_set(1)
+    model.select_training_genes()
+    model.create_index_dataframe()
+    assert model.index_df.shape == (55, 5)
+
+
+def test_create_category_indexers(model):
+    model.select_training_set(2)
+    model.select_training_genes()
+    model.create_index_dataframe()
+    model.create_category_indexers()
+    assert len(model.x_ix) == 110
+    assert len(model.s_ix) == 11
+    assert len(model.s_map) == 11

@@ -6,6 +6,8 @@
 This package identifies outliers for gene expression data by building a consensus distribution from background datasets that are informed by an N-of-1 sample. 
 See [Model Explanation](#model-explanation) for more information, our paper in [JCO](https://ascopubs.org/doi/10.1200/CCI.19.00095), or our [preprint](https://www.biorxiv.org/content/early/2019/06/06/662338.full.pdf). 
 
+The model has undergone significant speed improvements and is no longer identical the model in the paper, but produces results that are essentially identical. Another benefit is the prior hyperparameters for each gene/dataset combination are now directly shared in the model whereas before they were approximated due to runtime.
+
 <p align="center"> 
 <img src="/imgs/Experimental-Protocol.png" height="50%" width="50%">
 </p>
@@ -101,10 +103,28 @@ estimate of the posterior predictive p-value for this expression value. The post
 p-value can be seen as a measure of how much of an outlier the expression is given the
 expectations of the comparison set
 
+This model has been drastically improved for speed by leveraging PyMC3's vectorization 
+approach and replacing the problematic student-T sampling with a Normal distribution. 
+Another benefit is there is no longer any computational "hack" of pre-fitting the 
+student-T distributions as the expression values in the background are directly shared 
+between two R.V.s that model expression for each gene/dataset combination. 
+A graph of the new model, for 125 genes and 3 datasets with 48,500 values in the 
+background dataset is shown below:
+
+<p align="center"> 
+<img src="/imgs/new-model.png" height="50%" width="50%">
+</p>
+
 # Defining Inputs
 
 The model requires two **Sample** by **Gene** matrices, one containing the N-of-1 sample and one containing samples to use as the background comparison set. 
-They must both contain the same set of genes and the background dataset must contain at least one metadata column with labels that differentiate groups (e.g. tissue, subtype, experiment, etc) at the start of the matrix.
+They *should* both contain the same set of genes and the background dataset must contain at least one metadata column with labels that differentiate groups (e.g. tissue, subtype, experiment, etc). Metadata columns need to be the **left-most** columns in the dataframe followed by all genes. This allows a simple heuristic (`--col-skip`) to designate where the genes start without needing the user to provide an additional input file.
+
+Here, `tissue` is one group that is used to differentiate the samples. We would run with `--col-skip=5` as there are 5 metadata columns before the start of the genes.
+
+<p align="center"> 
+<img src="/imgs/example-dataframe.png" height="50%" width="50%">
+</p>
 
 # Docker Container
 
@@ -121,9 +141,6 @@ docker run --rm -v $(pwd):/data jvivian/gene-outlier-detection \
         --col-skip=5
 ```
 
-# Toil-version of Workflow
-
-A [Toil](https://toil.readthedocs.io/) version of the workflow is available [here](https://github.com/jvivian/gene-outlier-detection/blob/master/toil/toil-outlier-detection.py). This allows the model to be run on multiple samples at scale on a cluster or cloud computing cluster, but requires Python 2.7 and `pip install pandas toil==3.19.0`
 
 # Arguments
 Explanation of arguments used when running the program.
@@ -156,6 +173,12 @@ Explanation of arguments used when running the program.
     - This flag disables iterative runs and runs one model with `--num-backgrounds`.
 - `--save-model`
     - This flag will save a serialized version of the model/trace. Useful for debugging or inspection of all model parameters.
+    
+# Toil-version of Workflow
+
+A [Toil](https://toil.readthedocs.io/) version of the workflow is available [here](https://github.com/jvivian/gene-outlier-detection/blob/master/toil/toil-outlier-detection.py). This allows the model to be run on multiple samples at scale on a cluster or cloud computing cluster, but requires Python 2.7 and `pip install pandas toil==3.19.0`
+
+Toil is now Python 3 compliant, so this method of running the program isn't recommended until the Toil code has been updated.
     
 # Citation
 If you leverage this method in your research, please cite our [JCO](https://ascopubs.org/doi/10.1200/CCI.19.00095) paper.

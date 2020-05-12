@@ -36,7 +36,10 @@ class Model:
         self.training_set = None
         self.training_genes = None
         self.backgrounds = None
-        self.fits = None
+        self.index_df = None
+        self.x_ix = None
+        self.s_map = None
+        self.s_ix = None
         self.trace = None
         self.model = None
         self.weights = None
@@ -144,7 +147,8 @@ class Model:
             List of initial genes
         """
         if self.gene_list is None:
-            msg = f"No gene list provided. Selecting {self.n_train} genes via SelectKBest (ANOVA F-value)"
+            msg = f"No gene list provided which is unusual - check command line. "
+            msg += f"Selecting {self.n_train} genes via SelectKBest (ANOVA F-value)"
             click.secho(msg, fg="yellow")
             # Select genes based on maximum number of background datasets
             genes = self.select_k_best_genes(self.df, n=self.n_train)
@@ -170,11 +174,11 @@ class Model:
     def select_training_genes(self):
         """Select complete training gene set based on `initial_genes` and `max_genes`"""
         if len(self.initial_genes) < self.max_genes:
-            diff = self.max_genes - len(self.initial_genes)
-            click.secho(
-                f"Adding {diff} genes via SelectKBest (ANOVA F-value) to reach {self.max_genes} total genes",
-                fg="yellow",
-            )
+            diff = int(len(self.initial_genes) * 0.30)
+            diff = min(diff, self.max_genes - len(self.initial_genes))
+            total = len(self.initial_genes) + diff
+            msg = f"Adding {diff} genes (30% more) via ANOVA F-value to reach {total} genes for model calibration."
+            click.secho(msg, fg="yellow")
             training_genes = self.initial_genes + self.select_k_best_genes(
                 self.training_set, n=diff
             )
@@ -183,118 +187,90 @@ class Model:
             training_genes = self.initial_genes
         self.training_genes = training_genes
 
-    def t_fits(self) -> pd.DataFrame:
-        """StudentT distribution fits for every dataset/gene pair"""
-        fits = {}
-        for gene in self.training_genes:
-            for i, dataset in enumerate(self.backgrounds):
-                # "intuitive" prior parameters
-                prior_mean = 0.0
-                prior_std_dev = 1.0
-                pseudocounts = 1.0
+    def create_index_dataframe(self):
+        """Creates DataFrame used to index X_{d,g} RVs to observed values"""
+        xdf = self.training_set[["tissue"] + self.training_genes].melt(id_vars="tissue")
+        xdf["gt"] = xdf.variable + "__" + xdf.tissue
+        xdf["gt"] = xdf["gt"].astype("category")
+        xdf["group"] = xdf.tissue.astype("category")
+        xdf["variable"] = xdf.variable.astype("category")
+        self.index_df = xdf.sort_values(["variable", "group"])
 
-                # convert to prior params of normal-inverse gamma
-                kappa_0 = pseudocounts
-                mu_0 = prior_mean
-                alpha_0 = 0.5 * pseudocounts
-                beta_0 = 0.5 / prior_std_dev ** 2
+    def create_category_indexers(self):
+        """Categorical index maps and the index vectors for observed variables"""
+        # Index vectors for mapping observed values to RVs (see model)
+        self.x_ix = self.index_df["gt"].cat.codes.values
+        self.s_ix = list(range(len(self.training_genes)))
 
-                # collect summary statistics for data
-                observations = np.array(self.df[self.df[self.group] == dataset][gene])
-                n = len(observations)
-                obs_sum = np.sum(observations)
-                obs_mean = obs_sum / n
-                obs_ssd = np.sum(np.square(observations - obs_mean))
-
-                # compute the posterior params
-                kappa_n = kappa_0 + n
-                mu_n = (kappa_0 * mu_0 + obs_sum) / (kappa_0 + n)
-                alpha_n = alpha_0 + 0.5 * n
-                beta_n = beta_0 + 0.5 * (
-                    obs_ssd + kappa_0 * n * (obs_mean - mu_0) ** 2 / (kappa_0 + n)
-                )
-
-                # from https://www.seas.harvard.edu/courses/cs281/papers/murphy-2007.pdf, equation (110)
-                # convert to the params of a PyMC student-t (i.e. integrate out the prior)
-                mu = mu_n
-                nu = 2.0 * alpha_n
-                lam = alpha_n * kappa_n / (beta_n * (kappa_n + 1.0))
-
-                fits[f"{gene}={dataset}"] = (mu, nu, lam, np.sqrt(1 / lam))
-        columns = ["mu", "nu", "lam", "sd"]
-        return pd.DataFrame.from_dict(fits, orient="index", columns=columns)
+        # Mapping index back to the training genes
+        self.s_map = {v: k for k, v in dict(enumerate(self.training_genes)).items()}
 
     def run_model(self, **kwargs):
         """Run Bayesian model using prefit Y's for each Gene and Dataset distribution"""
         # Importing here since Theano base_compiledir needs to be set prior to import
         import pymc3 as pm
 
-        # Collect fits
-        self.fits = self.t_fits()
-
         click.echo("Building model")
         with pm.Model() as self.model:
-            # Convex model priors
-            b = (
-                [1]
-                if len(self.backgrounds) == 1
-                else pm.Dirichlet("b", a=np.ones(len(self.backgrounds)))
+            # Constants
+            N = len(self.backgrounds)
+            M = len(self.training_genes)
+            MN = M * N
+
+            # Prior constants
+            mu_exp = self.df[self.training_genes].mean().mean()
+            sd_exp = self.df[self.training_genes].std().mean()
+
+            # Gene Model Priors
+            gm_sd = pm.InverseGamma("gm_sd", 1, 1, shape=MN)
+            gm_mu = pm.Normal("gm_mu", mu_exp, sd_exp, shape=MN)
+
+            # Gene model
+            pm.Normal(
+                "x_hat",
+                mu=gm_mu[self.x_ix],
+                sd=gm_sd[self.x_ix],
+                shape=MN,
+                observed=self.index_df.value,
             )
-            # Model error
+            x = pm.Normal("x", mu=gm_mu, sd=gm_sd, shape=MN)
+
+            # Likelihood priors
             eps = pm.InverseGamma("eps", 1, 1)
+            if N == 1:
+                beta = [1]
+            else:
+                beta = pm.Dirichlet("beta", a=np.ones(N))
 
-            # Convex model declaration
-            for gene in tqdm(self.training_genes):
-                y, norm_term = 0, 0
-                for i, dataset in enumerate(self.backgrounds):
-                    name = f"{gene}={dataset}"
-                    fit = self.fits.loc[name]
-                    x = pm.StudentT(name, nu=fit.nu, mu=fit.mu, lam=fit.lam)
-                    y += (b[i] / fit.sd) * x
-                    norm_term += b[i] / fit.sd
+            # Likelihood
+            norm = np.zeros(M)
+            gm_sd_2d = gm_sd.reshape((M, N))
+            for i in range(N):
+                norm += beta[i] / gm_sd_2d[:, i]
+            norm = pm.Deterministic("norm", norm)
 
-                # y_g = \frac{\sum_d \frac{\beta * x}{\sigma} + \epsilon}{\sum_d\frac{\beta}{\sigma}}
-                # Embed mu in laplacian distribution
-                pm.Laplace(
-                    gene,
-                    mu=y / norm_term,
-                    b=eps / norm_term,
-                    observed=self.sample[gene],
-                )
-            # Sample
-            self.trace = pm.sample(**kwargs)
+            y = pm.Deterministic("y", pm.math.dot((x / gm_sd).reshape((M, N)), beta))
+            norm_eps = pm.Deterministic("norm_eps", eps / norm)
+            sample_genes = self.sample[self.training_genes].values
+            pm.Laplace(
+                "y_hat", mu=(y / norm)[self.s_ix], b=norm_eps, observed=sample_genes
+            )
 
-    def posterior_predictive_check(self):
-        """Posterior predictive check for a list of genes trained in the model"""
-        self.ppc = {}
-        for gene in self.initial_genes:
-            self.ppc[gene] = self._gene_ppc(gene)
-
-    def _gene_ppc(self, gene: str) -> np.array:
-        """Calculate posterior predictive for a gene"""
-        y_gene = [x for x in self.trace.varnames if x.startswith(f"{gene}=")]
-        y, norm_term = 0, 0
-        multiple_backgrounds = "b" in self.trace.varnames
-        for i, y_name in enumerate(y_gene):
-            fit = self.fits.loc[y_name]
-            b = self.trace["b"][:, i] if multiple_backgrounds else 1
-            y += (b / fit.sd) * self.trace[y_name]
-            norm_term += b / fit.sd
-
-        sampling = np.random.laplace(
-            loc=(y / norm_term), scale=(self.trace["eps"] / norm_term)
-        )
-        return sampling
+            trace = pm.sample(**kwargs)
+        self.trace = trace
+        click.echo("Calculating posterior predictive samples")
+        self.ppc = pm.sample_posterior_predictive(trace, model=self.model)
 
     def posterior_predictive_pvals(self):
         """Produces Series of posterior p-values for all genes in the Posterior Predictive Check (PPC) dictionary"""
+        click.echo("Calculating p-values")
         pvals = {}
-        for gene in self.ppc:
-            z_true = self.sample[gene]
-            z = st.laplace.rvs(*st.laplace.fit(self.ppc[gene]), size=100_000)
-            # Rule of thumb: for 100,000 samples, report p-values to the thousands place
-            # Add pseudocount for instances where outlier is more extreme than every other sample
-            pvals[gene] = round((np.sum(z_true < z) + 1) / (len(z) + 1), 3)
+        for gene in tqdm(self.initial_genes):
+            yx = self.s_map[gene]
+            post = self.ppc["y_hat"][:, yx]
+            pval = len([x for x in post if x > self.sample[gene]]) / len(post)
+            pvals[gene] = round(pval, 3)
+
         self.ppp = pd.DataFrame(pvals.items(), columns=["Gene", "Pval"]).sort_values(
             "Pval"
         )
@@ -339,7 +315,7 @@ class Model:
             {
                 "Class": class_col,
                 "Weights": np.array(
-                    [self.trace["b"][:, x] for x in range(len(self.backgrounds))]
+                    [self.trace["beta"][:, x] for x in range(len(self.backgrounds))]
                 ).ravel(),
             }
         )
@@ -373,7 +349,7 @@ class Model:
 
         # 'b' parameter is not in the model if n_bg == 1
         b = True if self.n_bg > 1 else False
-        varnames = ["b", "eps"] if b else ["eps"]
+        varnames = ["beta", "eps"] if b else ["eps"]
         pm.traceplot(self.trace, var_names=varnames)
         traceplot_out = os.path.join(self.out_dir, "traceplot.png")
         fig = plt.gcf()
@@ -384,6 +360,7 @@ class Model:
         ppp_out = os.path.join(self.out_dir, "pvals.tsv")
         self.ppp.columns = ["Up-pvalue"]
         self.ppp["Down-pvalue"] = 1 - self.ppp["Up-pvalue"]
+        self.ppp["Down-pvalue"] = self.ppp["Down-pvalue"].round(3)
         self.ppp.to_csv(ppp_out, sep="\t")
 
     def output_run_info(self, runtime, unit):
@@ -406,12 +383,12 @@ class Model:
         out = os.path.join(self.out_dir, "_gelman-rubin.tsv")
         stats = []
         with open(out, "w") as f:
-            for k, v in pm.diagnostics.gelman_rubin(self.trace).items():
-                if hasattr(v, "__iter__"):
-                    stats.extend(v)
-                    v_out = "\t".join([str(x) for x in v])
-                else:
-                    stats.append(v)
+            for k, v in pm.stats.rhat(self.trace).items():
+                try:
+                    stats.extend([float(x) for x in v])
+                    v_out = "\t".join([str(float(x)) for x in v])
+                except TypeError:
+                    stats.append(float(v))
                     v_out = v
                 f.write(f"{k}\t{v_out}\n")
             median = round(np.median(stats), 5)
