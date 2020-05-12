@@ -36,12 +36,13 @@ def run(opts: Namespace):
         # Run model a single time with i background datasets
         m.select_training_set(num_backgrounds=i)
         m.select_training_genes()
+        m.create_index_dataframe()
+        m.create_category_indexers()
         t0_run = time.time()
         m.run_model()
         m.display_runtime(t0_run)
 
         # Calculate posterior predictive p-values
-        m.posterior_predictive_check()
         m.posterior_predictive_pvals()
 
         # Update per-run P-values and save
@@ -60,7 +61,8 @@ def run(opts: Namespace):
 
         # Check if p-values have converged and break out of loop if so
         if pr > m.pval_cutoff:
-            msg = f"P-values converged at {pr} across {len(m.pval_runs)} genes."
+            pr = round(pr, 4)
+            msg = f"P-values converged with PearsonR of {pr} across {len(m.pval_runs)} genes."
             click.secho(msg, fg="green")
             break
         else:

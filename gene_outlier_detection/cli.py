@@ -51,12 +51,11 @@ def common_cli(function: Callable) -> Callable:
     function = click.option(
         "-m",
         "--max-genes",
-        default=125,
+        default=200,
         type=int,
         show_default=True,
-        help="Maximum number of genes to run. I.e. if a gene list is provided, how many additional genes to add via "
-        "SelectKBest. Useful for improving beta coefficients if gene list does not contain enough tissue-specific "
-        "genes. A good rule of thumb is to set --max-genes to 1.5 times the number of genes in --gene-list",
+        help="Maximum number of genes to run. If a gene list is provided, 30% additional genes are added for "
+        "model calibration via SelectKBest, capped by this parameter.",
     )(function)
     click.option(
         "-nbg",
