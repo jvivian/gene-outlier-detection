@@ -112,7 +112,7 @@ A graph of the new model, for 125 genes and 3 datasets with 48,500 values in the
 background dataset is shown below:
 
 <p align="center"> 
-<img src="/imgs/new-model.png" height="50%" width="50%">
+<img src="/imgs/new-model.png" height="50%" width="75%">
 </p>
 
 # Defining Inputs
@@ -123,7 +123,7 @@ They *should* both contain the same set of genes and the background dataset must
 Here, `tissue` is one group that is used to differentiate the samples. We would run with `--col-skip=5` as there are 5 metadata columns before the start of the genes.
 
 <p align="center"> 
-<img src="/imgs/example-dataframe.png" height="50%" width="50%">
+<img src="/imgs/example-dataframe.png" height="50%" width="75%">
 </p>
 
 # Docker Container
