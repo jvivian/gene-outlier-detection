@@ -63,7 +63,7 @@ def run_outlier_model(job, sample_info, args, cores=3, memory="15G"):
         parameters.append("--save-model")
     if args.gene_list:
         parameters.extend(["--gene-list", "/data/gene-list.txt"])
-    image = "jvivian/gene-outlier-detection:0.14.0a"
+    image = "jvivian/gene-outlier-detection:1.0"
     apiDockerCall(
         job=job,
         image=image,

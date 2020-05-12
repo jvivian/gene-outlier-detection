@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "gene-outlier-detection"
-version = "0.16a"
+version = "1.0"
 description = "A Bayesian model for identifying gene expression outliers for individual single samples (N-of-1) when compared to a cohort of background datasets."
 authors = ["John Vivian <jtvivian@gmail.com>"]
 readme = "README.md"
