@@ -6,7 +6,7 @@
 This package identifies outliers for gene expression data by building a consensus distribution from background datasets that are informed by an N-of-1 sample. 
 See [Model Explanation](#model-explanation) for more information, our paper in [JCO](https://ascopubs.org/doi/10.1200/CCI.19.00095), or our [preprint](https://www.biorxiv.org/content/early/2019/06/06/662338.full.pdf). 
 
-The model has undergone significant performance improvements and is no longer identical to the model in the paper, but produces results that are essentially identical. Another benefit is the prior hyperparameters for each gene/dataset combination are now directly shared in the model whereas before they were approximated due to runtime concerns.
+The model has undergone significant performance improvements and is no longer identical to the model in the paper, but produces results that are essentially identical (PearsonR > 0.995).
 
 <p align="center"> 
 <img src="/imgs/Experimental-Protocol.png" height="50%" width="50%">
@@ -103,11 +103,8 @@ estimate of the posterior predictive p-value for this expression value. The post
 p-value can be seen as a measure of how much of an outlier the expression is given the
 expectations of the comparison set
 
-This model has been drastically improved for performance by leveraging PyMC3's vectorization 
-approach and replacing the problematic student-T sampling with a Normal distribution. 
-Another benefit is there is no longer any computational "hack" of pre-fitting the 
-student-T distributions as the expression values in the background are directly shared 
-between two R.V.s that model expression for each gene/dataset combination. 
+This model has been drastically improved for performance by using vectorized random variables. The gene expression RVs are flattened so they can be passed a 1D vector of observations. These RVs are reshaped into a 2D matrix matrix so the linear equation can be computed via standard dot product. The expression RVs had difficulty fitting student-T distributions due to the wide range of nu and was replaced with a Normal distribution. There is also no longer any computational "hack" of pre-fitting the student-T distributions to the expression values in the background and using those as prior values. The expression observations are now directly integrated with the rest of the model. 
+
 A graph of the new model, for 125 genes and 3 datasets with 48,500 values in the 
 background dataset is shown below:
 
