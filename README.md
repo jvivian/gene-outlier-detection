@@ -6,7 +6,7 @@
 This package identifies outliers for gene expression data by building a consensus distribution from background datasets that are informed by an N-of-1 sample. 
 See [Model Explanation](#model-explanation) for more information, our paper in [JCO](https://ascopubs.org/doi/10.1200/CCI.19.00095), or our [preprint](https://www.biorxiv.org/content/early/2019/06/06/662338.full.pdf). 
 
-The model has undergone significant speed improvements and is no longer identical to the model in the paper, but produces results that are essentially identical. Another benefit is the prior hyperparameters for each gene/dataset combination are now directly shared in the model whereas before they were approximated due to runtime concerns.
+The model has undergone significant performance improvements and is no longer identical to the model in the paper, but produces results that are essentially identical. Another benefit is the prior hyperparameters for each gene/dataset combination are now directly shared in the model whereas before they were approximated due to runtime concerns.
 
 <p align="center"> 
 <img src="/imgs/Experimental-Protocol.png" height="50%" width="50%">
@@ -103,7 +103,7 @@ estimate of the posterior predictive p-value for this expression value. The post
 p-value can be seen as a measure of how much of an outlier the expression is given the
 expectations of the comparison set
 
-This model has been drastically improved for speed by leveraging PyMC3's vectorization 
+This model has been drastically improved for performance by leveraging PyMC3's vectorization 
 approach and replacing the problematic student-T sampling with a Normal distribution. 
 Another benefit is there is no longer any computational "hack" of pre-fitting the 
 student-T distributions as the expression values in the background are directly shared 
