@@ -112,7 +112,7 @@ A graph of the new model, for 125 genes and 3 datasets with 48,500 values in the
 background dataset is shown below:
 
 <p align="center"> 
-<img src="/imgs/new-model.png" height="50%" width="75%">
+<img src="/imgs/new-model.png" height="50%" width="100%">
 </p>
 
 # Defining Inputs
